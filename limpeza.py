@@ -1,22 +1,17 @@
-import re
-import pandas as pd
+from __future__ import annotations
 
-def limpar_descricao(texto):
-    # 1. Converter para maiúsculas
+import re
+
+
+def limpar_descricao(texto: str) -> str:
     texto = texto.upper()
-    
-    # 2. Remover números longos (IDs/referências)
-    texto = re.sub(r'\d{5,}', '', texto)
-    
-    # 3. Remover caracteres especiais
-    texto = re.sub(r'[^A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]', '', texto)
-    
-    # 4. Remover espaços extra
+    texto = re.sub(r"\d{5,}", "", texto)
+    texto = re.sub(r"[^A-ZÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÇ\s]", "", texto)
     texto = " ".join(texto.split())
-    
     return texto
 
-# Teste 
-exemplo = "COMPRA POS 4829102934 CONTINENTE MATOSINHOS - 2024-05-10"
-print(f"Antes: {exemplo}")
-print(f"Depois: {limpar_descricao(exemplo)}")
+
+if __name__ == "__main__":
+    exemplo = "COMPRA POS 4829102934 CONTINENTE MATOSINHOS - 2024-05-10"
+    print(f"Antes: {exemplo}")
+    print(f"Depois: {limpar_descricao(exemplo)}")
