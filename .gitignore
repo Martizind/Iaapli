@@ -1,0 +1,17 @@
+# Ambiente Virtual (nunca se sobe o venv!)
+venv/
+__pycache__/
+*.pyc
+
+# Dados sensíveis (Privacidade dos teus amigos!)
+*.pdf
+*.csv
+*.xlsx
+db/
+
+# Ollama / Modelos (são demasiado grandes)
+models/
+
+# Configurações de IDE
+.vscode/
+.idea/
