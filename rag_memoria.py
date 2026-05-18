@@ -12,7 +12,7 @@ import ollama
 from limpeza import limpar_descricao
 
 
-DEFAULT_RAG_CSV_PATH = "avaliacao_transacoes.csv"
+DEFAULT_RAG_CSV_PATH = "memoria_rag.csv"
 DEFAULT_RAG_DB_PATH = "db/chroma"
 DEFAULT_RAG_COLLECTION = "transaction_memory"
 DEFAULT_RAG_EMBEDDING_MODEL = "llama3"
@@ -24,9 +24,9 @@ class RagExample:
     description: str
     clean_description: str
     direction: str
-    source_file: str
-    booking_date: str
-    amount: str
+    source_file: str = ""
+    booking_date: str = ""
+    amount: str = ""
     distance: float | None = None
 
 
@@ -37,22 +37,36 @@ class RagLookupResult:
     examples: list[RagExample]
 
 
+@dataclass(frozen=True)
+class MemoryRecord:
+    description: str
+    clean_description: str
+    direction: str
+    category: str
+    source_file: str = ""
+    booking_date: str = ""
+    amount: str = ""
+    bank_name: str = ""
+    details: str = ""
+
+
 def build_memory_text(
     description: str,
     clean_description: str,
-    details: str | None,
     direction: str,
+    category: str = "",
+    details: str | None = None,
     bank_name: str = "",
     amount: str = "",
-    category: str = "",
 ) -> str:
     parts = [
         f"descricao_original: {description}",
         f"descricao_limpa: {clean_description}",
-        f"detalhes: {details or 'sem detalhes'}",
         f"direcao: {direction}",
     ]
 
+    if details:
+        parts.append(f"detalhes: {details}")
     if bank_name:
         parts.append(f"banco: {bank_name}")
     if amount:
@@ -64,13 +78,12 @@ def build_memory_text(
 
 
 def build_example_id(
-    source_file: str,
-    booking_date: str,
     description: str,
-    amount: str,
+    clean_description: str,
     direction: str,
+    category: str,
 ) -> str:
-    raw = "||".join([source_file, booking_date, description, amount, direction])
+    raw = "||".join([description, clean_description, direction, category])
     return sha1(raw.encode("utf-8")).hexdigest()
 
 
@@ -83,90 +96,165 @@ class RagMemoryStore:
     ) -> None:
         self.db_path = Path(db_path)
         self.db_path.mkdir(parents=True, exist_ok=True)
+        self.collection_name = collection_name
         self.embedding_model = embedding_model
         self.client = chromadb.PersistentClient(path=str(self.db_path))
-        self.collection = self.client.get_or_create_collection(
-            name=collection_name,
+        self.collection = self._create_collection()
+        state_name = f".{self.collection_name}_{self.embedding_model}_sync.sha1"
+        self.state_path = self.db_path / state_name
+
+    def _create_collection(self):
+        return self.client.get_or_create_collection(
+            name=self.collection_name,
             metadata={"hnsw:space": "cosine"},
         )
+
+    def _reset_collection(self) -> None:
+        try:
+            self.client.delete_collection(name=self.collection_name)
+        except Exception:
+            pass
+        self.client = chromadb.PersistentClient(path=str(self.db_path))
+        self.collection = self._create_collection()
+
+    def _build_sync_signature(self, csv_path: Path) -> str:
+        digest = sha1()
+        digest.update(csv_path.read_bytes())
+        digest.update(self.collection_name.encode("utf-8"))
+        digest.update(self.embedding_model.encode("utf-8"))
+        return digest.hexdigest()
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         response = ollama.embed(model=self.embedding_model, input=texts)
         return response.embeddings
 
-    def sync_from_truth_csv(self, csv_path: str | Path) -> int:
+    def load_memory_records(self, csv_path: str | Path) -> list[MemoryRecord]:
         path = Path(csv_path)
         if not path.exists():
-            return 0
+            return []
 
-        ids: list[str] = []
-        documents: list[str] = []
-        metadatas: list[dict[str, str]] = []
-
+        records_by_id: dict[str, MemoryRecord] = {}
         with path.open("r", encoding="utf-8", newline="") as csv_file:
             reader = csv.DictReader(csv_file, delimiter=";")
             for row in reader:
                 if (row.get("extractor_status") or "").strip() == "missing_in_current_extractor":
                     continue
 
-                source_file = (row.get("source_file") or "").strip()
-                booking_date = (row.get("booking_date") or "").strip()
                 description = (row.get("description") or "").strip()
-                amount = (row.get("amount") or "").strip()
+                clean_description = (row.get("clean_description") or "").strip()
                 direction = (row.get("direction") or "").strip()
-                category = (row.get("categoria_correta") or "").strip()
-                bank_name = (row.get("bank_name") or "").strip()
-                clean_description = limpar_descricao(description)
-
-                ids.append(
-                    build_example_id(
-                        source_file=source_file,
-                        booking_date=booking_date,
-                        description=description,
-                        amount=amount,
-                        direction=direction,
-                    )
-                )
-                documents.append(
-                    build_memory_text(
-                        description=description,
-                        clean_description=clean_description,
-                        details=row.get("observacoes") or "",
-                        direction=direction,
-                        bank_name=bank_name,
-                        amount=amount,
-                        category=category,
-                    )
-                )
-                metadatas.append(
-                    {
-                        "source_file": source_file,
-                        "bank_name": bank_name,
-                        "booking_date": booking_date,
-                        "description": description,
-                        "clean_description": clean_description,
-                        "amount": amount,
-                        "direction": direction,
-                        "category": category,
-                    }
+                category = (
+                    (row.get("categoria_correta") or row.get("category") or "").strip()
                 )
 
-        if not ids:
+                if not description or not direction or not category:
+                    continue
+
+                if not clean_description:
+                    clean_description = limpar_descricao(description)
+
+                record = MemoryRecord(
+                    description=description,
+                    clean_description=clean_description,
+                    direction=direction,
+                    category=category,
+                    source_file=(row.get("source_file") or "").strip(),
+                    booking_date=(row.get("booking_date") or "").strip(),
+                    amount=(row.get("amount") or "").strip(),
+                    bank_name=(row.get("bank_name") or "").strip(),
+                    details=((row.get("observacoes") or row.get("notes") or "").strip()),
+                )
+                record_id = build_example_id(
+                    description=record.description,
+                    clean_description=record.clean_description,
+                    direction=record.direction,
+                    category=record.category,
+                )
+                if record_id not in records_by_id:
+                    records_by_id[record_id] = record
+
+        return list(records_by_id.values())
+
+    def sync_from_csv(self, csv_path: str | Path) -> int:
+        path = Path(csv_path)
+        if not path.exists():
             return 0
 
-        if self.collection.count() == len(ids):
+        signature = self._build_sync_signature(path)
+        if (
+            self.state_path.exists()
+            and self.state_path.read_text(encoding="utf-8") == signature
+            and self.collection.count() > 0
+        ):
             return 0
 
+        records = self.load_memory_records(path)
+        if not records:
+            self._reset_collection()
+            self.state_path.write_text(signature, encoding="utf-8")
+            return 0
+
+        ids: list[str] = []
+        documents: list[str] = []
+        metadatas: list[dict[str, str]] = []
+
+        for record in records:
+            ids.append(
+                build_example_id(
+                    description=record.description,
+                    clean_description=record.clean_description,
+                    direction=record.direction,
+                    category=record.category,
+                )
+            )
+            documents.append(
+                build_memory_text(
+                    description=record.description,
+                    clean_description=record.clean_description,
+                    direction=record.direction,
+                    category=record.category,
+                    details=record.details,
+                    bank_name=record.bank_name,
+                    amount=record.amount,
+                )
+            )
+            metadatas.append(
+                {
+                    "source_file": record.source_file,
+                    "booking_date": record.booking_date,
+                    "amount": record.amount,
+                    "bank_name": record.bank_name,
+                    "description": record.description,
+                    "clean_description": record.clean_description,
+                    "direction": record.direction,
+                    "category": record.category,
+                }
+            )
+
+        self._reset_collection()
         embeddings = self.embed_texts(documents)
-        self.collection.upsert(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas,
-            embeddings=embeddings,
-        )
-        return len(ids)
+        try:
+            self.collection.upsert(
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas,
+                embeddings=embeddings,
+            )
+        except Exception:
+            self._reset_collection()
+            self.collection.upsert(
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas,
+                embeddings=embeddings,
+            )
+        self.state_path.write_text(signature, encoding="utf-8")
+        return len(records)
 
-    def exact_lookup(self, clean_description: str) -> list[RagExample]:
+    def sync_from_truth_csv(self, csv_path: str | Path) -> int:
+        return self.sync_from_csv(csv_path)
+
+    def exact_lookup(self, clean_description: str, direction: str) -> list[RagExample]:
         result = self.collection.get(
             where={"clean_description": clean_description},
             include=["metadatas"],
@@ -175,7 +263,7 @@ class RagMemoryStore:
         examples: list[RagExample] = []
 
         for metadata in metadatas:
-            if not metadata:
+            if not metadata or str(metadata.get("direction", "")) != direction:
                 continue
             examples.append(
                 RagExample(
@@ -205,15 +293,18 @@ class RagMemoryStore:
         query_text = build_memory_text(
             description=description,
             clean_description=clean_description,
-            details=details,
             direction=direction,
+            details=details,
             bank_name=bank_name,
             amount=amount,
         )
         query_embedding = self.embed_texts([query_text])[0]
+        query_limit = max(top_k * 5, top_k)
+        query_limit = min(query_limit, max(self.collection.count(), top_k))
+
         result = self.collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k,
+            n_results=query_limit,
             include=["metadatas", "distances"],
         )
 
@@ -222,7 +313,7 @@ class RagMemoryStore:
         examples: list[RagExample] = []
 
         for metadata, distance in zip(metadata_rows, distance_rows):
-            if not metadata:
+            if not metadata or str(metadata.get("direction", "")) != direction:
                 continue
             examples.append(
                 RagExample(
@@ -237,7 +328,7 @@ class RagMemoryStore:
                 )
             )
 
-        return examples
+        return examples[:top_k]
 
     def classify_with_memory(
         self,
@@ -249,8 +340,10 @@ class RagMemoryStore:
         amount: str = "",
         top_k: int = 3,
     ) -> RagLookupResult:
-        exact_examples = self.exact_lookup(clean_description)
-        exact_categories = sorted({example.category for example in exact_examples if example.category})
+        exact_examples = self.exact_lookup(clean_description, direction)
+        exact_categories = sorted(
+            {example.category for example in exact_examples if example.category}
+        )
         if len(exact_categories) == 1:
             return RagLookupResult(
                 category=exact_categories[0],
@@ -290,7 +383,9 @@ class RagMemoryStore:
                 best_group = group
 
         if best_category and len(best_group) >= 2:
-            distances = [example.distance for example in best_group if example.distance is not None]
+            distances = [
+                example.distance for example in best_group if example.distance is not None
+            ]
             average_distance = mean(distances) if distances else None
             if average_distance is not None and average_distance <= 0.10:
                 return RagLookupResult(

@@ -192,7 +192,7 @@ def enriquecer_transacoes(
     rag_top_k: int = 3,
 ) -> dict[str, object]:
     extraction = extract_statement(pdf_path)
-    cache: dict[str, tuple[str, str]] = {}
+    cache: dict[tuple[str, str], tuple[str, str]] = {}
     enriched_transactions: list[dict[str, str | None]] = []
     rag_store: RagMemoryStore | None = None
 
@@ -202,14 +202,15 @@ def enriquecer_transacoes(
             collection_name=rag_collection,
             embedding_model=rag_embedding_model,
         )
-        rag_store.sync_from_truth_csv(rag_csv)
+        rag_store.sync_from_csv(rag_csv)
 
     for transaction in extraction.transactions:
         transaction_record = transaction.to_record()
         cleaned_description = limpar_descricao(transaction.description)
+        cache_key = (cleaned_description, transaction.direction)
         rag_examples: list[RagExample] = []
 
-        if cleaned_description not in cache:
+        if cache_key not in cache:
             rule_result = classificar_por_regras(
                 description=transaction.description,
                 cleaned_description=cleaned_description,
@@ -217,7 +218,7 @@ def enriquecer_transacoes(
                 direction=transaction.direction,
             )
             if rule_result is not None:
-                cache[cleaned_description] = rule_result
+                cache[cache_key] = rule_result
             elif rag_store is not None:
                 rag_lookup = rag_store.classify_with_memory(
                     description=transaction.description,
@@ -230,11 +231,11 @@ def enriquecer_transacoes(
                 )
                 rag_examples = rag_lookup.examples
                 if rag_lookup.category and rag_lookup.source:
-                    cache[cleaned_description] = (rag_lookup.category, rag_lookup.source)
+                    cache[cache_key] = (rag_lookup.category, rag_lookup.source)
                 elif sem_ia:
-                    cache[cleaned_description] = ("Outros", "sem_ia")
+                    cache[cache_key] = ("Outros", "sem_ia")
                 else:
-                    cache[cleaned_description] = classificar_transacao(
+                    cache[cache_key] = classificar_transacao(
                         description=transaction.description,
                         cleaned_description=cleaned_description,
                         details=transaction_record["details"],
@@ -244,9 +245,9 @@ def enriquecer_transacoes(
                         rag_examples=rag_examples,
                     )
             elif sem_ia:
-                cache[cleaned_description] = ("Outros", "sem_ia")
+                cache[cache_key] = ("Outros", "sem_ia")
             else:
-                cache[cleaned_description] = classificar_transacao(
+                cache[cache_key] = classificar_transacao(
                     description=transaction.description,
                     cleaned_description=cleaned_description,
                     details=transaction_record["details"],
@@ -256,8 +257,8 @@ def enriquecer_transacoes(
                 )
 
         transaction_record["clean_description"] = cleaned_description
-        transaction_record["category"] = cache[cleaned_description][0]
-        transaction_record["classification_source"] = cache[cleaned_description][1]
+        transaction_record["category"] = cache[cache_key][0]
+        transaction_record["classification_source"] = cache[cache_key][1]
         enriched_transactions.append(transaction_record)
 
     return {

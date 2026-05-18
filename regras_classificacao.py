@@ -70,7 +70,10 @@ def classificar_por_regras(
     ):
         return "Subscricoes", "regra_subscricao"
 
-    if any(token in description_ascii for token in ("MERCADONA", "ALDI", "LIDL", "CONTINENTE")):
+    if any(
+        token in description_ascii
+        for token in ("MERCADONA", "ALDI", "LIDL", "CONTINENTE", "PINGO DOCE")
+    ):
         return "Supermercado", "regra_supermercado"
 
     if any(
@@ -82,6 +85,7 @@ def classificar_por_regras(
             "HAMBURGUERIA",
             "BODEGAO",
             "CERV DIO",
+            "EUREST",
         )
     ):
         return "Restauracao", "regra_restauracao"

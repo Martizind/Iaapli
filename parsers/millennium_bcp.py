@@ -4,67 +4,33 @@ from datetime import datetime
 import re
 
 from .base import (
-    StatementExtraction,
     StatementMetadata,
-    StatementParser,
     StatementTransaction,
     find_first,
     parse_amount,
     parse_month_day_dot,
 )
+from .base_tabular import BaseTabularParser
 from .layout import PdfDocument, PdfRow
 
 
-class MillenniumBcpParser(StatementParser):
+class MillenniumBcpParser(BaseTabularParser):
     bank_name = "Millennium BCP"
+    transaction_pattern = re.compile(r"^\d{2}\.\d{2}\s+\d{2}\.\d{2}\s+")
 
     def can_parse(self, document: PdfDocument) -> bool:
         text = document.full_text()
         return "EXTRATO COMBINADO" in text and "BCOMPTPL" in text
 
-    def parse(self, document: PdfDocument) -> StatementExtraction:
-        metadata = self._build_metadata(document)
-        transactions: list[StatementTransaction] = []
+    def row_region(self) -> dict[str, float]:
+        return {
+            "min_x": 50,
+            "max_x": 560,
+            "min_top": 40,
+            "max_top": 760,
+        }
 
-        for page in document.pages:
-            rows = page.rows_in_region(min_x=50, max_x=560, min_top=40, max_top=760)
-            header_index = next(
-                (
-                    index
-                    for index, row in enumerate(rows)
-                    if "LANC." in row.text and "DESCRITIVO" in row.text and "SALDO" in row.text
-                ),
-                None,
-            )
-
-            if header_index is None:
-                continue
-
-            columns = self._resolve_columns(rows[header_index])
-            for row in rows[header_index + 1 :]:
-                text = row.text
-                if not text:
-                    continue
-                if text.startswith("SALDO FINAL"):
-                    break
-                if not re.match(r"^\d{2}\.\d{2}\s+\d{2}\.\d{2}\s+", text):
-                    continue
-                transactions.append(
-                    self._parse_transaction_row(
-                        row=row,
-                        columns=columns,
-                        source_file=document.filename,
-                        statement_year=metadata.statement_end.year if metadata.statement_end else None,
-                    )
-                )
-
-        if transactions:
-            metadata.statement_start = min(transaction.booking_date for transaction in transactions)
-            metadata.statement_end = max(transaction.booking_date for transaction in transactions)
-
-        return StatementExtraction(metadata=metadata, transactions=transactions)
-
-    def _build_metadata(self, document: PdfDocument) -> StatementMetadata:
+    def build_metadata(self, document: PdfDocument) -> StatementMetadata:
         text = document.full_text()
         statement_date_match = find_first(r"\b(\d{2}/\d{2}/\d{2})\s+CONTA:", text)
         iban_match = find_first(r"IBAN:\s*([A-Z0-9 ]+)", text)
@@ -93,7 +59,10 @@ class MillenniumBcpParser(StatementParser):
             currency="EUR",
         )
 
-    def _resolve_columns(self, header_row: PdfRow) -> dict[str, float]:
+    def is_header_row(self, row: PdfRow) -> bool:
+        return "LANC." in row.text and "DESCRITIVO" in row.text and "SALDO" in row.text
+
+    def resolve_columns(self, header_row: PdfRow) -> dict[str, float]:
         value_date_x = next(word.x0 for word in header_row.words if word.text == "VALOR")
         description_x = next(word.x0 for word in header_row.words if word.text == "DESCRITIVO")
         debit_x = next(word.x0 for word in header_row.words if word.text == "DEBITO")
@@ -115,12 +84,18 @@ class MillenniumBcpParser(StatementParser):
             "balance": balance_start,
         }
 
-    def _parse_transaction_row(
+    def should_stop_row(self, row: PdfRow) -> bool:
+        return row.text.startswith("SALDO FINAL")
+
+    def is_transaction_row(self, row: PdfRow) -> bool:
+        return bool(self.transaction_pattern.match(row.text))
+
+    def parse_transaction_row(
         self,
         row: PdfRow,
         columns: dict[str, float],
-        source_file: str,
-        statement_year: int | None,
+        metadata: StatementMetadata,
+        document: PdfDocument,
     ) -> StatementTransaction:
         booking_text = row.text_between(x_max=columns["booking_date_end"])
         value_text = row.text_between(
@@ -135,6 +110,7 @@ class MillenniumBcpParser(StatementParser):
         credit = parse_amount(row.text_between(x_min=columns["credit"], x_max=columns["balance"]))
         balance = parse_amount(row.text_between(x_min=columns["balance"]))
 
+        statement_year = metadata.statement_end.year if metadata.statement_end else None
         if statement_year is None:
             raise ValueError("Millennium BCP parser needs a statement year.")
 
@@ -148,7 +124,7 @@ class MillenniumBcpParser(StatementParser):
 
         return StatementTransaction(
             bank_name=self.bank_name,
-            source_file=source_file,
+            source_file=document.filename,
             page_number=row.page_number,
             booking_date=booking_date,
             value_date=value_date,
@@ -159,3 +135,6 @@ class MillenniumBcpParser(StatementParser):
             currency="EUR",
             raw_text=row.text,
         )
+
+    def override_statement_bounds(self) -> bool:
+        return True
