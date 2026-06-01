@@ -19,9 +19,17 @@ def classificar_por_regras(
     details_ascii = remover_acentos(details or "").upper()
     combined_ascii = f"{description_ascii} {cleaned_ascii} {details_ascii}"
 
+    if "CARREGAMENTO COM APPLE PAY" in combined_ascii:
+        return "Rendimentos", "regra_carregamento_apple_pay"
+
+    if "CONVERSAO CAMBIAL" in combined_ascii:
+        return "Cambio", "regra_cambio"
+
     if (
         description_ascii.startswith("TRF")
         or cleaned_ascii.startswith("TRF")
+        or description_ascii.startswith("TO ")
+        or cleaned_ascii.startswith("TO ")
         or " MB WAY " in f" {description_ascii} "
         or " MBWAY " in f" {description_ascii} "
         or " MB WAY " in f" {cleaned_ascii} "
@@ -29,6 +37,9 @@ def classificar_por_regras(
         or "TRANSFER TO " in description_ascii
         or "APPLE PAY DEPOSIT" in description_ascii
         or "REVOLUT BANK UAB SUCURSAL EM PORTUGAL" in description_ascii
+        or "REVOLUT BANK UAB SUCURSAL EM" in description_ascii
+        or "REVOLUT FRANCE, SUCCURSALE DE" in description_ascii
+        or "REVOLUT LTD" in description_ascii
         or "MEMORIA LIQUIDA LDA" in description_ascii
     ):
         return "Transferencias", "regra_trf_mbway"
@@ -80,12 +91,15 @@ def classificar_por_regras(
         token in description_ascii
         for token in (
             "MCDONALDS",
+            "MCDONALD'S",
             "RESTAURANTE",
             "UBER * EATS",
             "HAMBURGUERIA",
             "BODEGAO",
             "CERV DIO",
             "EUREST",
+            "OTACOS",
+            "O'TACOS",
         )
     ):
         return "Restauracao", "regra_restauracao"

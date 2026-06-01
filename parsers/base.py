@@ -10,14 +10,8 @@ from .layout import PdfDocument
 
 
 def parse_amount(value: str) -> Decimal | None:
-    cleaned = (
-        value.replace("EUR", "")
-        .replace("€", "")
-        .replace("+", "")
-        .replace("-", "")
-        .replace(" ", "")
-        .strip()
-    )
+    cleaned = re.sub(r"[^0-9,.\-+ ]", "", value).strip()
+    cleaned = cleaned.replace("+", "").replace("-", "").replace(" ", "")
 
     if not cleaned:
         return None
