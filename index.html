@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinTrack — Extrato Inteligente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f10;
+      --bg2:       #141618;
+      --bg3:       #1c1f22;
+      --bg4:       #242729;
+      --border:    rgba(255,255,255,0.07);
+      --border2:   rgba(255,255,255,0.13);
+      --text:      #e8e6e0;
+      --text2:     #8a887f;
+      --text3:     #4a4945;
+      --accent:    #c8f060;
+      --accent2:   #a8d040;
+      --red:       #e24b4a;
+      --green:     #1d9e75;
+      --blue:      #378add;
+      --amber:     #ef9f27;
+      --purple:    #7f77dd;
+      --radius:    10px;
+      --radius-sm: 6px;
+      --mono:      'DM Mono', monospace;
+      --serif:     'DM Serif Display', serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* ── Grain overlay ─────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    .app { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ───────────────────────────────────────────────── */
+    .sidebar {
+      width: 220px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 1.5rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-text {
+      font-family: var(--serif);
+      font-size: 22px;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text em { color: var(--accent); font-style: italic; }
+
+    .logo-sub {
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 1rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 12px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item i { font-size: 16px; }
+    .nav-item:hover { background: var(--bg3); color: var(--text); }
+    .nav-item.active { background: var(--bg3); color: var(--accent); border: 1px solid rgba(200,240,96,0.15); }
+
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .ai-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    .ai-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    .ai-dot.offline { background: var(--red); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Main content ──────────────────────────────────────────── */
+    .main {
+      margin-left: 220px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Topbar ────────────────────────────────────────────────── */
+    .topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-title {
+      font-family: var(--serif);
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .period-select {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* ── Sections ──────────────────────────────────────────────── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .content-pad { padding: 1.75rem 2rem; }
+
+    /* ── Upload area ───────────────────────────────────────────── */
+    .upload-zone {
+      border: 1.5px dashed var(--border2);
+      border-radius: var(--radius);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--bg2);
+      margin-bottom: 1.5rem;
+    }
+
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(200,240,96,0.03); }
+
+    .upload-icon { font-size: 40px; color: var(--text3); margin-bottom: 1rem; display: block; }
+    .upload-title { font-family: var(--serif); font-size: 20px; color: var(--text); margin-bottom: 6px; }
+    .upload-sub { font-size: 11px; color: var(--text2); }
+
+    #file-input { display: none; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-accent { background: var(--accent); color: #0d0f10; font-weight: 500; }
+    .btn-accent:hover { background: var(--accent2); }
+    .btn-ghost { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+    .btn-danger { background: rgba(226,75,74,0.15); color: var(--red); border: 1px solid rgba(226,75,74,0.25); }
+    .btn-danger:hover { background: rgba(226,75,74,0.25); }
+
+    .btn i { font-size: 15px; }
+
+    /* ── Cards ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text2);
+    }
+
+    /* ── Metric grid ───────────────────────────────────────────── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 1.25rem;
+    }
+
+    .metric {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .metric.m-green::before { background: var(--green); }
+    .metric.m-red::before { background: var(--red); }
+    .metric.m-blue::before { background: var(--blue); }
+    .metric.m-amber::before { background: var(--amber); }
+
+    .metric-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-family: var(--serif);
+      font-size: 26px;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .metric-value.green { color: var(--green); }
+    .metric-value.red { color: var(--red); }
+
+    .metric-change {
+      font-size: 10px;
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .metric-change.up { color: var(--green); }
+    .metric-change.down { color: var(--red); }
+
+    /* ── Chart row ─────────────────────────────────────────────── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 12px;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Table ─────────────────────────────────────────────────── */
+    .tx-table { width: 100%; border-collapse: collapse; }
+
+    .tx-table th {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text3);
+      padding: 6px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tx-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .tx-table tr:last-child td { border-bottom: none; }
+
+    .tx-table tbody tr {
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+
+    .tx-table tbody tr:hover { background: var(--bg3); }
+
+    .tx-merchant {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .tx-date { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+    .tx-amount { font-size: 13px; font-weight: 500; }
+    .tx-amount.credit { color: var(--green); }
+    .tx-amount.debit { color: var(--text); }
+
+    .cat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+
+    .cat-pill.Alimentação  { background: rgba(29,158,117,0.15); color: var(--green); }
+    .cat-pill.Transportes  { background: rgba(55,138,221,0.15); color: var(--blue); }
+    .cat-pill.Lazer        { background: rgba(127,119,221,0.15); color: var(--purple); }
+    .cat-pill.Saúde        { background: rgba(226,75,74,0.15); color: var(--red); }
+    .cat-pill.Habitação    { background: rgba(239,159,39,0.15); color: var(--amber); }
+    .cat-pill.Receita      { background: rgba(200,240,96,0.15); color: var(--accent); }
+    .cat-pill.Subscrições  { background: rgba(127,119,221,0.15); color: var(--purple); }
+    .cat-pill.Outros       { background: rgba(138,136,127,0.15); color: var(--text2); }
+    .cat-pill.A\ processar { background: rgba(239,159,39,0.15); color: var(--amber); }
+
+    /* ── Progress bars (categories) ────────────────────────────── */
+    .cat-item { margin-bottom: 14px; }
+    .cat-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
+    .cat-name-txt { color: var(--text2); }
+    .cat-val { color: var(--text); }
+    .cat-bar { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+    .cat-bar-inner { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+
+    /* ── Filter chips ──────────────────────────────────────────── */
+    .filter-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .chip {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: var(--mono);
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chip:hover { border-color: var(--border2); color: var(--text); }
+    .chip.active { background: var(--accent); color: #0d0f10; border-color: var(--accent); }
+
+    /* ── Upload log ────────────────────────────────────────────── */
+    .log-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      font-size: 11px;
+      color: var(--text2);
+      height: 160px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      line-height: 1.8;
+    }
+
+    .log-line { display: flex; gap: 8px; }
+    .log-time { color: var(--text3); }
+    .log-ok { color: var(--green); }
+    .log-warn { color: var(--amber); }
+    .log-err { color: var(--red); }
+
+    /* ── Progress spinner ──────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ─────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text);
+      z-index: 9000;
+      transform: translateY(60px);
+      opacity: 0;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 300px;
+    }
+
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.ok i { color: var(--green); }
+    #toast.err i { color: var(--red); }
+
+    /* ── Fade-in animations ────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-up { animation: fadeUp 0.35s ease both; }
+
+    .metrics-grid > * { animation: fadeUp 0.35s ease both; }
+    .metrics-grid > *:nth-child(1) { animation-delay: 0.05s; }
+    .metrics-grid > *:nth-child(2) { animation-delay: 0.10s; }
+    .metrics-grid > *:nth-child(3) { animation-delay: 0.15s; }
+    .metrics-grid > *:nth-child(4) { animation-delay: 0.20s; }
+
+    /* ── Empty state ───────────────────────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text3);
+    }
+
+    .empty i { font-size: 36px; display: block; margin-bottom: 0.75rem; }
+    .empty p { font-size: 12px; }
+
+    /* ── Insight box ───────────────────────────────────────────── */
+    .insight {
+      background: rgba(200,240,96,0.04);
+      border: 1px solid rgba(200,240,96,0.15);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .insight i { font-size: 18px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+    .insight-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+    .insight-body strong { color: var(--text); }
+
+    /* ── Scrollbar ─────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .sidebar { width: 60px; }
+      .sidebar .logo-text, .sidebar .logo-sub, .nav-item span, .sidebar-footer .ai-status span { display: none; }
+      .nav-item { justify-content: center; padding: 10px; }
+      .main { margin-left: 60px; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .chart-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast"><i class="ti ti-check"></i><span id="toast-msg"></span></div>
+
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">fin<em>track</em></div>
+      <div class="logo-sub">Extrato IA</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="goTo('dashboard', this)">
+        <i class="ti ti-layout-dashboard"></i><span>Dashboard</span>
+      </button>
+      <button class="nav-item" onclick="goTo('transacoes', this)">
+        <i class="ti ti-list"></i><span>Transações</span>
+      </button>
+      <button class="nav-item" onclick="goTo('upload', this)">
+        <i class="ti ti-upload"></i><span>Importar PDF</span>
+      </button>
+      <button class="nav-item" onclick="goTo('relatorio', this)">
+        <i class="ti ti-chart-bar"></i><span>Relatório</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="ai-status">
+        <div class="ai-dot" id="ai-dot"></div>
+        <span id="ai-status-txt">A verificar IA...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <select class="period-select" id="period-select" onchange="filterPeriod()">
+          <option value="all">Todos os períodos</option>
+          <option value="2026-05">Maio 2026</option>
+          <option value="2026-04">Abril 2026</option>
+          <option value="2026-03">Março 2026</option>
+        </select>
+        <button class="btn btn-ghost" onclick="exportCSV()">
+          <i class="ti ti-table-export"></i> CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="section active content-pad" id="sec-dashboard">
+
+      <!-- Insight IA -->
+      <div class="insight fade-up" id="insight-box" style="display:none;">
+        <i class="ti ti-sparkles"></i>
+        <div class="insight-body" id="insight-text"></div>
+      </div>
+
+      <!-- Métricas -->
+      <div class="metrics-grid" id="metrics-grid">
+        <div class="metric m-green">
+          <div class="metric-label">Receitas totais</div>
+          <div class="metric-value green" id="m-income">€0</div>
+          <div class="metric-change up"><i class="ti ti-trending-up"></i> este período</div>
+        </div>
+        <div class="metric m-red">
+          <div class="metric-label">Despesas totais</div>
+          <div class="metric-value red" id="m-expense">€0</div>
+          <div class="metric-change down"><i class="ti ti-trending-down"></i> este período</div>
+        </div>
+        <div class="metric m-blue">
+          <div class="metric-label">Saldo líquido</div>
+          <div class="metric-value" id="m-balance">€0</div>
+          <div class="metric-change" id="m-balance-change">receitas − despesas</div>
+        </div>
+        <div class="metric m-amber">
+          <div class="metric-label">Transações</div>
+          <div class="metric-value" id="m-count">0</div>
+          <div class="metric-change">registadas</div>
+        </div>
+      </div>
+
+      <!-- Gráficos -->
+      <div class="chart-row">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Evolução mensal</span>
+            <div style="display:flex;gap:6px;">
+              <button class="chip active" onclick="setChartMode('bar',this)">Barras</button>
+              <button class="chip" onclick="setChartMode('line',this)">Linha</button>
+            </div>
+          </div>
+          <div style="position:relative;height:220px;">
+            <canvas id="flow-chart" role="img" aria-label="Gráfico de receitas e despesas mensais"></canvas>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text2);">
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--green);"></span>Receitas</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:var(--red);"></span>Despesas</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Por categoria</span></div>
+          <div id="cat-bars"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ TRANSAÇÕES ══ -->
+    <div class="section content-pad" id="sec-transacoes">
+      <div class="filter-row" id="filter-chips">
+        <button class="chip active" onclick="filterCat('all',this)">Todas</button>
+        <button class="chip" onclick="filterCat('Receita',this)">Receitas</button>
+        <button class="chip" onclick="filterCat('Alimentação',this)">Alimentação</button>
+        <button class="chip" onclick="filterCat('Transportes',this)">Transportes</button>
+        <button class="chip" onclick="filterCat('Lazer',this)">Lazer</button>
+        <button class="chip" onclick="filterCat('Saúde',this)">Saúde</button>
+        <button class="chip" onclick="filterCat('Habitação',this)">Habitação</button>
+        <button class="chip" onclick="filterCat('Outros',this)">Outros</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Descrição</th>
+              <th>Data</th>
+              <th>Categoria</th>
+              <th style="text-align:right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody id="tx-body">
+            <tr><td colspan="4"><div class="empty"><i class="ti ti-file-off"></i><p>Sem dados. Importa um extrato PDF.</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ UPLOAD ══ -->
+    <div class="section content-pad" id="sec-upload">
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <i class="ti ti-cloud-upload upload-icon"></i>
+        <div class="upload-title">Arrasta o extrato PDF aqui</div>
+        <div class="upload-sub" style="margin-top:6px;">ou clica para selecionar · PDF do teu banco</div>
+        <input type="file" id="file-input" accept=".pdf" onchange="handleFile(this.files[0])" />
+      </div>
+      <input type="text" id="pdf-path" placeholder="Ou cola o caminho do ficheiro: C:\Users\...\extrato.pdf"
+             style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
+                    color:var(--text);font-family:var(--mono);font-size:12px;padding:10px 14px;margin-bottom:1rem;outline:none;" />
+
+      <div style="display:flex;gap:8px;margin-bottom:1.25rem;">
+        <button class="btn btn-accent" onclick="processarPDF()">
+          <i class="ti ti-cpu"></i> Processar com IA
+        </button>
+        <button class="btn btn-ghost" onclick="limparDados()">
+          <i class="ti ti-trash"></i> Limpar dados
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Log de processamento</span></div>
+        <div class="log-box" id="log-box">
+          <div class="log-line"><span class="log-time">--:--</span><span>Aguarda PDF para processar...</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1rem;">
+        <div class="card-header"><span class="card-title">Como funciona</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;font-size:12px;color:var(--text2);">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <i class="ti ti-file-type-pdf" style="font-size:22px;color:var(--blue);"></i>
+            <strong style="color:var(--text);">1. Extração</strong>
+            <span>pdfplumber lê o texto do extrato bancário página a página</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <i class="ti ti-wash" style="font-size:22px;color:var(--amber);"></i>
+            <strong style="color:var(--text);">2. Limpeza</strong>
+            <span>Remove IDs, referências e normaliza as descrições</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <i class="ti ti-brain" style="font-size:22px;color:var(--purple);"></i>
+            <strong style="color:var(--text);">3. IA local</strong>
+            <span>Llama 3 via Ollama classifica cada transação por categoria</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RELATÓRIO ══ -->
+    <div class="section content-pad" id="sec-relatorio">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Distribuição por categoria</span></div>
+        <div style="position:relative;height:280px;">
+          <canvas id="donut-chart" role="img" aria-label="Gráfico circular de despesas por categoria"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Resumo exportável</span>
+          <button class="btn btn-ghost" onclick="exportCSV()"><i class="ti ti-download"></i> Download CSV</button>
+        </div>
+        <div id="resumo-table"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ── Estado global ──────────────────────────────────────────────── */
+let allTransactions = [];   // { date, description, amount, type, category }
+let filteredTx       = [];
+let flowChartInst    = null;
+let donutChartInst   = null;
+let currentCat       = 'all';
+
+const API = 'http://127.0.0.1:5000';   // Flask backend
+
+/* ── Navegação ─────────────────────────────────────────────────── */
+function goTo(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  btn.classList.add('active');
+  const titles = { dashboard:'Dashboard', transacoes:'Transações', upload:'Importar PDF', relatorio:'Relatório' };
+  document.getElementById('page-title').textContent = titles[name];
+  if (name === 'relatorio') renderDonut();
+}
+
+/* ── Verificar Ollama ──────────────────────────────────────────── */
+async function checkAI() {
+  try {
+    const r = await fetch(API + '/status', { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    document.getElementById('ai-dot').className = 'ai-dot';
+    document.getElementById('ai-status-txt').textContent = 'Llama 3 pronto';
+  } catch {
+    document.getElementById('ai-dot').className = 'ai-dot offline';
+    document.getElementById('ai-status-txt').textContent = 'IA offline';
+  }
+}
+
+/* ── Upload / Drag-drop ────────────────────────────────────────── */
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file || !file.name.endsWith('.pdf')) { toast('Ficheiro inválido — precisa ser PDF', 'err'); return; }
+  document.getElementById('pdf-path').value = file.name;
+  log('ok', `Ficheiro selecionado: ${file.name} (${(file.size/1024).toFixed(0)} KB)`);
+}
+
+/* ── Processar PDF via backend Flask ───────────────────────────── */
+async function processarPDF() {
+  const pathInput = document.getElementById('pdf-path').value.trim();
+  const fileInput = document.getElementById('file-input');
+
+  if (!pathInput && !fileInput.files.length) {
+    toast('Seleciona ou cola o caminho de um PDF', 'err'); return;
+  }
+
+  log('ok', 'A enviar para o servidor...');
+  log('warn', 'A extrair texto do PDF com pdfplumber...');
+
+  try {
+    let body;
+    let headers = {};
+
+    if (fileInput.files.length) {
+      const fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      body = fd;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({ path: pathInput });
+    }
+
+    const r = await fetch(API + '/processar', { method: 'POST', headers, body });
+
+    if (!r.ok) { throw new Error(`Servidor respondeu ${r.status}`); }
+
+    const data = await r.json();
+    log('ok', `Extraídas ${data.transactions.length} transações`);
+    log('warn', 'A classificar com Llama 3...');
+
+    allTransactions = data.transactions;
+    filteredTx = [...allTransactions];
+
+    log('ok', '✓ Classificação concluída!');
+    log('ok', `Receitas: €${data.summary.income.toFixed(2)} | Despesas: €${data.summary.expense.toFixed(2)}`);
+
+    renderAll();
+    toast('Extrato processado com sucesso!', 'ok');
+
+  } catch (err) {
+    log('err', 'Erro: ' + err.message);
+    log('warn', 'A usar dados de demonstração...');
+    loadDemoData();
+    toast('Backend offline — a usar dados demo', 'err');
+  }
+}
+
+/* ── Demo data (quando o backend não está disponível) ──────────── */
+function loadDemoData() {
+  allTransactions = [
+    { date:'2026-05-26', description:'SALÁRIO MAIO', amount: 2800, type:'credit', category:'Receita' },
+    { date:'2026-05-25', description:'RENDA APARTAMENTO', amount:-720, type:'debit', category:'Habitação' },
+    { date:'2026-05-24', description:'CONTINENTE MATOSINHOS', amount:-87.40, type:'debit', category:'Alimentação' },
+    { date:'2026-05-23', description:'FREELANCE DESIGN', amount:400, type:'credit', category:'Receita' },
+    { date:'2026-05-22', description:'UBER PORTO', amount:-12.30, type:'debit', category:'Transportes' },
+    { date:'2026-05-21', description:'NETFLIX', amount:-17.99, type:'debit', category:'Subscrições' },
+    { date:'2026-05-20', description:'RESTAURANTE O MANEL', amount:-34.50, type:'debit', category:'Alimentação' },
+    { date:'2026-05-19', description:'CP COMBOIO PORTO LISBOA', amount:-28.70, type:'debit', category:'Transportes' },
+    { date:'2026-05-18', description:'TRANSFERÊNCIA RECEBIDA', amount:150, type:'credit', category:'Receita' },
+    { date:'2026-05-17', description:'FNAC PORTO', amount:-45, type:'debit', category:'Lazer' },
+    { date:'2026-05-15', description:'FARMÁCIA SAÚDE MAIS', amount:-22.50, type:'debit', category:'Saúde' },
+    { date:'2026-05-14', description:'GALP COMBUSTÍVEL', amount:-60, type:'debit', category:'Transportes' },
+    { date:'2026-05-12', description:'LIDL GAIA', amount:-54.20, type:'debit', category:'Alimentação' },
+    { date:'2026-05-10', description:'SPOTIFY', amount:-9.99, type:'debit', category:'Subscrições' },
+    { date:'2026-05-08', description:'GYM BOUTIQUE FITNESS', amount:-45, type:'debit', category:'Saúde' },
+    { date:'2026-05-05', description:'MEO TELECOMUNICAÇÕES', amount:-38, type:'debit', category:'Habitação' },
+    { date:'2026-05-03', description:'CINEMA NOS PORTO', amount:-16, type:'debit', category:'Lazer' },
+    { date:'2026-05-01', description:'SUBSIDIO ALIMENTAÇÃO', amount:100, type:'credit', category:'Receita' },
+  ];
+  filteredTx = [...allTransactions];
+  renderAll();
+}
+
+/* ── Render tudo ───────────────────────────────────────────────── */
+function renderAll() {
+  renderMetrics();
+  renderTxTable();
+  renderFlowChart();
+  renderCatBars();
+  renderInsight();
+}
+
+/* ── Métricas ──────────────────────────────────────────────────── */
+function renderMetrics() {
+  const tx = filteredTx;
+  const income  = tx.filter(t=>t.type==='credit').reduce((a,t)=>a+t.amount,0);
+  const expense = tx.filter(t=>t.type==='debit').reduce((a,t)=>a+Math.abs(t.amount),0);
+  const balance = income - expense;
+
+  document.getElementById('m-income').textContent  = fmt(income);
+  document.getElementById('m-expense').textContent = fmt(expense);
+  document.getElementById('m-balance').textContent = fmt(balance);
+  document.getElementById('m-count').textContent   = tx.length;
+
+  const bEl = document.getElementById('m-balance');
+  bEl.className = 'metric-value ' + (balance >= 0 ? 'green' : 'red');
+}
+
+/* ── Tabela de transações ──────────────────────────────────────── */
+function renderTxTable() {
+  const body = document.getElementById('tx-body');
+  const tx = filteredTx.filter(t => currentCat === 'all' || t.category === currentCat);
+
+  if (!tx.length) {
+    body.innerHTML = `<tr><td colspan="4"><div class="empty"><i class="ti ti-ghost"></i><p>Sem transações nesta categoria.</p></div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = tx.map(t => `
+    <tr>
+      <td>
+        <div class="tx-merchant">${t.description}</div>
+        <div class="tx-date">${formatDate(t.date)}</div>
+      </td>
+      <td style="color:var(--text2);font-size:11px;">${formatDate(t.date)}</td>
+      <td><span class="cat-pill ${t.category}">${t.category}</span></td>
+      <td style="text-align:right;">
+        <span class="tx-amount ${t.type}">${t.type==='credit' ? '+' : ''}${fmt(t.amount)}</span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ── Gráfico de barras / linha ─────────────────────────────────── */
+function renderFlowChart(type='bar') {
+  const months = {};
+  filteredTx.forEach(t => {
+    const m = t.date.substring(0,7);
+    if (!months[m]) months[m] = { income:0, expense:0 };
+    if (t.type==='credit') months[m].income += t.amount;
+    else months[m].expense += Math.abs(t.amount);
+  });
+
+  const labels  = Object.keys(months).sort();
+  const income  = labels.map(l => +months[l].income.toFixed(2));
+  const expense = labels.map(l => +months[l].expense.toFixed(2));
+  const labelsFmt = labels.map(l => {
+    const [y,m] = l.split('-');
+    const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return nomes[+m-1] + ' ' + y.slice(2);
+  });
+
+  if (flowChartInst) flowChartInst.destroy();
+
+  flowChartInst = new Chart(document.getElementById('flow-chart'), {
+    type,
+    data: {
+      labels: labelsFmt,
+      datasets: [
+        { label:'Receitas', data:income, backgroundColor:'#1D9E75', borderColor:'#1D9E75', borderRadius:4, tension:0.3 },
+        { label:'Despesas', data:expense, backgroundColor:'#E24B4A', borderColor:'#E24B4A', borderRadius:4, tension:0.3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c=>'€'+c.raw.toLocaleString('pt-PT') } } },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#4a4945',font:{family:'DM Mono',size:10}} },
+        y:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#4a4945',font:{family:'DM Mono',size:10},callback:v=>'€'+v} }
+      }
+    }
+  });
+}
+
+function setChartMode(type, btn) {
+  document.querySelectorAll('.card .chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFlowChart(type);
+}
+
+/* ── Barras de categorias ──────────────────────────────────────── */
+function renderCatBars() {
+  const cats = {};
+  filteredTx.filter(t=>t.type==='debit').forEach(t => {
+    cats[t.category] = (cats[t.category] || 0) + Math.abs(t.amount);
+  });
+
+  const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const max = sorted[0]?.[1] || 1;
+  const colors = { Alimentação:'#1D9E75', Transportes:'#378ADD', Lazer:'#7F77DD',
+                   Saúde:'#E24B4A', Habitação:'#EF9F27', Subscrições:'#7F77DD', Outros:'#8a887f' };
+
+  document.getElementById('cat-bars').innerHTML = sorted.map(([cat, val]) => `
+    <div class="cat-item">
+      <div class="cat-header">
+        <span class="cat-name-txt">${cat}</span>
+        <span class="cat-val">${fmt(val)}</span>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-bar-inner" style="width:${(val/max*100).toFixed(1)}%;background:${colors[cat]||'#8a887f'};"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ── Donut chart ───────────────────────────────────────────────── */
+function renderDonut() {
+  const cats = {};
+  filteredTx.filter(t=>t.type==='debit').forEach(t => {
+    cats[t.category] = (cats[t.category] || 0) + Math.abs(t.amount);
+  });
+
+  const labels = Object.keys(cats);
+  const data   = Object.values(cats).map(v=>+v.toFixed(2));
+  const palette = ['#1D9E75','#378ADD','#7F77DD','#E24B4A','#EF9F27','#C8F060','#8a887f'];
+
+  if (donutChartInst) donutChartInst.destroy();
+  donutChartInst = new Chart(document.getElementById('donut-chart'), {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:palette, borderWidth:0, hoverOffset:6 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'right', labels:{ color:'#8a887f', font:{family:'DM Mono',size:11}, padding:14 } },
+        tooltip:{ callbacks:{ label: c=>`${c.label}: €${c.raw.toLocaleString('pt-PT')}` } }
+      }
+    }
+  });
+
+  /* Tabela resumo */
+  const total = data.reduce((a,v)=>a+v,0);
+  document.getElementById('resumo-table').innerHTML = `
+    <table class="tx-table" style="font-size:12px;">
+      <thead><tr><th>Categoria</th><th>Total</th><th>%</th></tr></thead>
+      <tbody>
+        ${labels.map((l,i)=>`
+          <tr>
+            <td><span class="cat-pill ${l}">${l}</span></td>
+            <td style="color:var(--text);">${fmt(data[i])}</td>
+            <td style="color:var(--text2);">${(data[i]/total*100).toFixed(1)}%</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+/* ── Insight IA ────────────────────────────────────────────────── */
+function renderInsight() {
+  const cats = {};
+  filteredTx.filter(t=>t.type==='debit').forEach(t => {
+    cats[t.category] = (cats[t.category] || 0) + Math.abs(t.amount);
+  });
+  const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  if (!sorted.length) return;
+  const top = sorted[0];
+  const income = filteredTx.filter(t=>t.type==='credit').reduce((a,t)=>a+t.amount,0);
+  const pct = (top[1]/income*100).toFixed(0);
+
+  document.getElementById('insight-text').innerHTML =
+    `<strong>Análise automática:</strong> A tua maior categoria de despesa é <strong>${top[0]}</strong> com ${fmt(top[1])}, representando <strong>${pct}%</strong> das receitas. ${+pct>40 ? 'Considera reduzir este gasto para aumentar a poupança mensal.' : 'Bom controlo financeiro este período!'}`;
+  document.getElementById('insight-box').style.display = 'flex';
+}
+
+/* ── Filtros ───────────────────────────────────────────────────── */
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('#filter-chips .chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTxTable();
+}
+
+function filterPeriod() {
+  const val = document.getElementById('period-select').value;
+  filteredTx = val === 'all' ? [...allTransactions] : allTransactions.filter(t=>t.date.startsWith(val));
+  renderAll();
+}
+
+/* ── Export CSV ────────────────────────────────────────────────── */
+function exportCSV() {
+  if (!filteredTx.length) { toast('Sem dados para exportar', 'err'); return; }
+  const rows = [['Data','Descrição','Valor','Tipo','Categoria'],
+    ...filteredTx.map(t=>[t.date, `"${t.description}"`, t.amount, t.type, t.category])];
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'extrato_fintrack.csv';
+  a.click();
+  toast('CSV exportado!', 'ok');
+}
+
+/* ── Limpar dados ──────────────────────────────────────────────── */
+function limparDados() {
+  allTransactions = []; filteredTx = [];
+  document.getElementById('tx-body').innerHTML = `<tr><td colspan="4"><div class="empty"><i class="ti ti-file-off"></i><p>Sem dados. Importa um extrato PDF.</p></div></td></tr>`;
+  document.getElementById('cat-bars').innerHTML = '';
+  document.getElementById('insight-box').style.display = 'none';
+  if (flowChartInst) { flowChartInst.destroy(); flowChartInst = null; }
+  renderMetrics();
+  log('warn', 'Dados limpos.');
+  toast('Dados removidos', 'ok');
+}
+
+/* ── Log ───────────────────────────────────────────────────────── */
+function log(type, msg) {
+  const box = document.getElementById('log-box');
+  const t = new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const cls = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : 'log-warn';
+  box.innerHTML += `<div class="log-line"><span class="log-time">${t}</span><span class="${cls}">${msg}</span></div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ── Toast ─────────────────────────────────────────────────────── */
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  const icon = el.querySelector('i');
+  icon.className = type === 'ok' ? 'ti ti-check' : 'ti ti-alert-triangle';
+  el.className = 'show ' + type;
+  document.getElementById('toast-msg').textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.className='', 2800);
+}
+
+/* ── Helpers ───────────────────────────────────────────────────── */
+function fmt(v) {
+  const abs = Math.abs(v);
+  const str = abs.toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:2});
+  return (v < 0 ? '-' : '') + '€' + str;
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const [y,m,day] = d.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${+day} ${meses[+m-1]} ${y}`;
+}
+
+/* ── Init ──────────────────────────────────────────────────────── */
+checkAI();
+loadDemoData();   // Remove esta linha quando ligares ao backend real
+</script>
+</body>
+</html>
