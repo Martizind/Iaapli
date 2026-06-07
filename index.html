@@ -383,15 +383,59 @@
       letter-spacing: 0.05em;
     }
 
-    .cat-pill.Alimentação  { background: rgba(29,158,117,0.15); color: var(--green); }
-    .cat-pill.Transportes  { background: rgba(55,138,221,0.15); color: var(--blue); }
-    .cat-pill.Lazer        { background: rgba(127,119,221,0.15); color: var(--purple); }
-    .cat-pill.Saúde        { background: rgba(226,75,74,0.15); color: var(--red); }
-    .cat-pill.Habitação    { background: rgba(239,159,39,0.15); color: var(--amber); }
-    .cat-pill.Receita      { background: rgba(200,240,96,0.15); color: var(--accent); }
-    .cat-pill.Subscrições  { background: rgba(127,119,221,0.15); color: var(--purple); }
-    .cat-pill.Outros       { background: rgba(138,136,127,0.15); color: var(--text2); }
-    .cat-pill.A\ processar { background: rgba(239,159,39,0.15); color: var(--amber); }
+    .cat-pill.Alimentação      { background: rgba(29,158,117,0.15); color: var(--green); }
+    .cat-pill.Transportes      { background: rgba(55,138,221,0.15); color: var(--blue); }
+    .cat-pill.Lazer            { background: rgba(127,119,221,0.15); color: var(--purple); }
+    .cat-pill.Saúde            { background: rgba(226,75,74,0.15); color: var(--red); }
+    .cat-pill.Habitação        { background: rgba(239,159,39,0.15); color: var(--amber); }
+    .cat-pill.Receita          { background: rgba(200,240,96,0.15); color: var(--accent); }
+    .cat-pill.Subscrições      { background: rgba(127,119,221,0.15); color: var(--purple); }
+    .cat-pill.Câmbio           { background: rgba(55,138,221,0.15); color: var(--blue); }
+    .cat-pill.Transferência    { background: rgba(138,136,127,0.15); color: var(--text2); }
+    .cat-pill.Educação         { background: rgba(239,159,39,0.15); color: var(--amber); }
+    .cat-pill.Viagens          { background: rgba(29,158,117,0.15); color: var(--green); }
+    .cat-pill.Outros           { background: rgba(138,136,127,0.15); color: var(--text2); }
+    .cat-pill.A\ processar    { background: rgba(239,159,39,0.15); color: var(--amber); }
+    .cat-pill.Não\ identificado { background: rgba(226,75,74,0.15); color: var(--red); border: 1px dashed rgba(226,75,74,0.4); }
+
+    /* ── Modal reclassificação ─────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 5000;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      width: 380px;
+      max-width: 92vw;
+      transform: translateY(16px);
+      transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-title { font-family: var(--serif); font-size: 18px; margin-bottom: 4px; color: var(--text); }
+    .modal-desc { font-size: 11px; color: var(--accent); margin-bottom: 4px; font-family: var(--mono); }
+    .modal-sub { font-size: 11px; color: var(--text2); margin-bottom: 1.25rem; }
+    .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 1.25rem; }
+    .cat-option {
+      padding: 8px 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg3); color: var(--text2);
+      font-family: var(--mono); font-size: 11px;
+      cursor: pointer; text-align: left; transition: all 0.12s;
+    }
+    .cat-option:hover { border-color: var(--border2); color: var(--text); }
+    .cat-option.selected { border-color: var(--accent); color: var(--accent); background: rgba(200,240,96,0.08); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .cat-pill { cursor: pointer; transition: opacity 0.1s; }
+    .cat-pill:hover { opacity: 0.75; }
 
     /* ── Progress bars (categories) ────────────────────────────── */
     .cat-item { margin-bottom: 14px; }
@@ -521,6 +565,12 @@
     .insight-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
     .insight-body strong { color: var(--text); }
 
+    /* ── Botão CLASSIFICAR ────────────────────────────────────── */
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(226,75,74,0.4); }
+      50% { opacity: 0.85; box-shadow: 0 0 0 4px rgba(226,75,74,0); }
+    }
+
     /* ── Scrollbar ─────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -562,6 +612,9 @@
       <button class="nav-item" onclick="goTo('relatorio', this)">
         <i class="ti ti-chart-bar"></i><span>Relatório</span>
       </button>
+      <button class="nav-item" onclick="goTo('chat', this)">
+        <i class="ti ti-message-chatbot"></i><span>Chat IA</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <div class="ai-status">
@@ -587,6 +640,9 @@
         <button class="btn btn-ghost" onclick="exportCSV()">
           <i class="ti ti-table-export"></i> CSV
         </button>
+        <button class="btn btn-ghost" onclick="gerarSugestoes()" id="btn-sugestoes-main" style="border-color:var(--purple);color:var(--purple);">
+          <i class="ti ti-sparkles"></i> Sugestões IA
+        </button>
       </div>
     </div>
 
@@ -597,6 +653,17 @@
       <div class="insight fade-up" id="insight-box" style="display:none;">
         <i class="ti ti-sparkles"></i>
         <div class="insight-body" id="insight-text"></div>
+      </div>
+
+      <!-- Sugestões IA -->
+      <div class="card fade-up" id="sugestoes-card" style="display:none;margin-bottom:1rem;border-left:2px solid var(--purple);">
+        <div class="card-header">
+          <span class="card-title" style="color:var(--purple);">✨ Sugestões de poupança — próximo mês</span>
+          <button class="btn btn-ghost" onclick="gerarSugestoes()" id="btn-sugestoes" style="font-size:11px;padding:5px 12px;">
+            <i class="ti ti-refresh"></i> Gerar novamente
+          </button>
+        </div>
+        <div id="sugestoes-content" style="font-size:12px;color:var(--text2);line-height:1.9;white-space:pre-wrap;"></div>
       </div>
 
       <!-- Métricas -->
@@ -689,6 +756,18 @@
         <div class="upload-sub" style="margin-top:6px;">ou clica para selecionar · PDF do teu banco</div>
         <input type="file" id="file-input" accept=".pdf" onchange="handleFile(this.files[0])" />
       </div>
+      <select id="banco-select" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
+               color:var(--text);font-family:var(--mono);font-size:12px;padding:10px 14px;margin-bottom:8px;outline:none;cursor:pointer;">
+        <option value="auto">🔍 Detectar banco automaticamente</option>
+        <option value="revolut_pt">Revolut (Português)</option>
+        <option value="revolut_en">Revolut (Inglês)</option>
+        <option value="millennium">Millennium BCP</option>
+        <option value="qonto">Qonto</option>
+        <option value="cgd">CGD Caixa Geral de Depósitos</option>
+        <option value="ca">Crédito Agrícola</option>
+        <option value="santander">Santander</option>
+        <option value="generico">Outro banco (genérico)</option>
+      </select>
       <input type="text" id="pdf-path" placeholder="Ou cola o caminho do ficheiro: C:\Users\...\extrato.pdf"
              style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
                     color:var(--text);font-family:var(--mono);font-size:12px;padding:10px 14px;margin-bottom:1rem;outline:none;" />
@@ -731,6 +810,59 @@
       </div>
     </div>
 
+    <!-- ══ CHAT IA ══ -->
+    <div class="section content-pad" id="sec-chat">
+      <div style="max-width:720px;margin:0 auto;">
+        <div class="card" style="margin-bottom:1rem;border-left:2px solid var(--purple);">
+          <div class="card-header">
+            <span class="card-title" style="color:var(--purple);">✨ Assistente Financeiro IA</span>
+            <span style="font-size:11px;color:var(--text3);">Powered by Llama 3 (local)</span>
+          </div>
+          <p style="font-size:12px;color:var(--text2);margin-bottom:0;">
+            Faz qualquer pergunta sobre as tuas finanças. O assistente tem acesso aos dados do teu extrato atual.
+          </p>
+        </div>
+
+        <!-- Messages -->
+        <div id="chat-messages" style="
+          height:420px;overflow-y:auto;
+          background:var(--bg);border:1px solid var(--border);
+          border-radius:var(--radius);padding:1rem;
+          display:flex;flex-direction:column;gap:12px;
+          margin-bottom:1rem;
+        ">
+          <div class="chat-msg assistant" style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="ti ti-robot" style="font-size:14px;color:#fff;"></i>
+            </div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:0 var(--radius) var(--radius) var(--radius);padding:10px 14px;font-size:13px;color:var(--text);line-height:1.6;max-width:85%;">
+              Olá! Sou o teu assistente financeiro. Posso responder a perguntas sobre os teus gastos, dar conselhos de poupança, ou analisar padrões nas tuas transações. Como posso ajudar?
+            </div>
+          </div>
+        </div>
+
+        <!-- Suggested questions -->
+        <div id="chat-suggestions" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="chip" onclick="enviarSugestao('Em que categoria gasto mais?')">Em que categoria gasto mais?</button>
+          <button class="chip" onclick="enviarSugestao('Como posso poupar mais este mês?')">Como posso poupar mais?</button>
+          <button class="chip" onclick="enviarSugestao('Qual é o meu saldo líquido?')">Qual é o meu saldo?</button>
+          <button class="chip" onclick="enviarSugestao('Quais são as minhas maiores despesas?')">Maiores despesas?</button>
+        </div>
+
+        <!-- Input -->
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="chat-input"
+            placeholder="Escreve a tua pergunta..."
+            style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+                   color:var(--text);font-family:var(--mono);font-size:13px;padding:10px 14px;outline:none;"
+            onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();enviarChat();}" />
+          <button class="btn btn-accent" onclick="enviarChat()" id="btn-chat-send">
+            <i class="ti ti-send"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ RELATÓRIO ══ -->
     <div class="section content-pad" id="sec-relatorio">
       <div class="card">
@@ -755,6 +887,9 @@
 /* ── Estado global ──────────────────────────────────────────────── */
 let allTransactions = [];   // { date, description, amount, type, category }
 let filteredTx       = [];
+// Base de aprendizagem local: descrição → categoria
+let aprendizagem = {};
+try { aprendizagem = JSON.parse(localStorage.getItem('fintrack_aprendizagem') || '{}'); } catch(e) { aprendizagem = {}; }
 let flowChartInst    = null;
 let donutChartInst   = null;
 let currentCat       = 'all';
@@ -767,7 +902,7 @@ function goTo(name, btn) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('sec-' + name).classList.add('active');
   btn.classList.add('active');
-  const titles = { dashboard:'Dashboard', transacoes:'Transações', upload:'Importar PDF', relatorio:'Relatório' };
+  const titles = { dashboard:'Dashboard', transacoes:'Transações', upload:'Importar PDF', relatorio:'Relatório', chat:'Chat IA' };
   document.getElementById('page-title').textContent = titles[name];
   if (name === 'relatorio') renderDonut();
 }
@@ -775,13 +910,24 @@ function goTo(name, btn) {
 /* ── Verificar Ollama ──────────────────────────────────────────── */
 async function checkAI() {
   try {
-    const r = await fetch(API + '/status', { signal: AbortSignal.timeout(3000) });
-    const d = await r.json();
-    document.getElementById('ai-dot').className = 'ai-dot';
-    document.getElementById('ai-status-txt').textContent = 'Llama 3 pronto';
+    const r = await fetch(API + '/status', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      document.getElementById('ai-dot').className = 'ai-dot';
+      document.getElementById('ai-status-txt').textContent = 'Llama 3 pronto';
+    } else {
+      document.getElementById('ai-dot').className = 'ai-dot offline';
+      document.getElementById('ai-status-txt').textContent = 'IA offline';
+    }
   } catch {
-    document.getElementById('ai-dot').className = 'ai-dot offline';
-    document.getElementById('ai-status-txt').textContent = 'IA offline';
+    // Tenta verificar se o servidor Flask está activo mesmo sem Ollama
+    try {
+      const r2 = await fetch(API + '/', { signal: AbortSignal.timeout(2000) });
+      document.getElementById('ai-dot').className = 'ai-dot';
+      document.getElementById('ai-status-txt').textContent = 'Servidor activo';
+    } catch {
+      document.getElementById('ai-dot').className = 'ai-dot offline';
+      document.getElementById('ai-status-txt').textContent = 'Servidor offline';
+    }
   }
 }
 
@@ -815,13 +961,16 @@ async function processarPDF() {
     let body;
     let headers = {};
 
+    const bancoSel = document.getElementById('banco-select')?.value || 'auto';
+
     if (fileInput.files.length) {
       const fd = new FormData();
       fd.append('file', fileInput.files[0]);
+      fd.append('banco', bancoSel);
       body = fd;
     } else {
       headers['Content-Type'] = 'application/json';
-      body = JSON.stringify({ path: pathInput });
+      body = JSON.stringify({ path: pathInput, banco: bancoSel });
     }
 
     const r = await fetch(API + '/processar', { method: 'POST', headers, body });
@@ -829,10 +978,12 @@ async function processarPDF() {
     if (!r.ok) { throw new Error(`Servidor respondeu ${r.status}`); }
 
     const data = await r.json();
+    const bancoLabel = data.banco ? data.banco.toUpperCase() : 'desconhecido';
+    log('ok', `Banco detetado: ${bancoLabel}`);
     log('ok', `Extraídas ${data.transactions.length} transações`);
     log('warn', 'A classificar com Llama 3...');
 
-    allTransactions = data.transactions;
+    allTransactions = aplicarAprendizagem(data.transactions);
     filteredTx = [...allTransactions];
 
     log('ok', '✓ Classificação concluída!');
@@ -843,9 +994,16 @@ async function processarPDF() {
 
   } catch (err) {
     log('err', 'Erro: ' + err.message);
+    // Tenta ver se é erro de extração com dica
+    try {
+      const errData = JSON.parse(err.message);
+      if (errData.dica) {
+        log('warn', '💡 ' + errData.dica);
+      }
+    } catch(e) {}
     log('warn', 'A usar dados de demonstração...');
     loadDemoData();
-    toast('Backend offline — a usar dados demo', 'err');
+    toast('Erro ao processar — a usar dados demo', 'err');
   }
 }
 
@@ -871,6 +1029,7 @@ function loadDemoData() {
     { date:'2026-05-03', description:'CINEMA NOS PORTO', amount:-16, type:'debit', category:'Lazer' },
     { date:'2026-05-01', description:'SUBSIDIO ALIMENTAÇÃO', amount:100, type:'credit', category:'Receita' },
   ];
+  allTransactions = aplicarAprendizagem(allTransactions);
   filteredTx = [...allTransactions];
   renderAll();
 }
@@ -910,14 +1069,28 @@ function renderTxTable() {
     return;
   }
 
-  body.innerHTML = tx.map(t => `
+  body.innerHTML = tx.map((t,i) => `
     <tr>
       <td>
         <div class="tx-merchant">${t.description}</div>
         <div class="tx-date">${formatDate(t.date)}</div>
       </td>
       <td style="color:var(--text2);font-size:11px;">${formatDate(t.date)}</td>
-      <td><span class="cat-pill ${t.category}">${t.category}</span></td>
+      <td>
+        ${(t.category === 'Outros' || t.category === 'Não identificado') ? `
+          <span class="cat-pill ${t.category}" onclick="abrirModal(${i})" title="Clica para reclassificar">
+            ${t.category === 'Não identificado' ? '⚠ ' : ''}${t.category}
+            <span style="opacity:0.5;font-size:9px;margin-left:2px;">✎</span>
+          </span>
+          <button onclick="abrirModal(${i})" style="margin-left:6px;font-size:10px;font-family:var(--mono);background:rgba(226,75,74,0.2);color:var(--red);border:1px solid rgba(226,75,74,0.5);border-radius:4px;padding:2px 8px;cursor:pointer;font-weight:700;letter-spacing:0.05em;">CLASSIFICAR</button>
+        ` : `
+          <span class="cat-pill ${t.category}" onclick="abrirModal(${i})" title="Clica para reclassificar">
+            ${t.category}
+            <span style="opacity:0.5;font-size:9px;margin-left:2px;">✎</span>
+          </span>
+        `}
+      </td>
+      </td>
       <td style="text-align:right;">
         <span class="tx-amount ${t.type}">${t.type==='credit' ? '+' : ''}${fmt(t.amount)}</span>
       </td>
@@ -929,19 +1102,35 @@ function renderTxTable() {
 function renderFlowChart(type='bar') {
   const months = {};
   filteredTx.forEach(t => {
-    const m = t.date.substring(0,7);
-    if (!months[m]) months[m] = { income:0, expense:0 };
-    if (t.type==='credit') months[m].income += t.amount;
-    else months[m].expense += Math.abs(t.amount);
+    if (!t.date || typeof t.date !== 'string') return;
+    // Normalise date: must be YYYY-MM-DD or YYYY-MM
+    const clean = t.date.trim();
+    // Extract year and month with regex - handles any separator
+    const dm = clean.match(/^(\d{4})[-\/\.](\d{1,2})/);
+    if (!dm) return;
+    const yr = dm[1];
+    const mo = dm[2].padStart(2, '0');
+    // Validate
+    const yrN = parseInt(yr, 10);
+    const moN = parseInt(mo, 10);
+    if (isNaN(yrN) || isNaN(moN) || moN < 1 || moN > 12 || yrN < 2000) return;
+    const key = yr + '-' + mo;
+    if (!months[key]) months[key] = { income:0, expense:0 };
+    if (t.type==='credit') months[key].income += t.amount;
+    else months[key].expense += Math.abs(t.amount);
   });
 
   const labels  = Object.keys(months).sort();
   const income  = labels.map(l => +months[l].income.toFixed(2));
   const expense = labels.map(l => +months[l].expense.toFixed(2));
   const labelsFmt = labels.map(l => {
-    const [y,m] = l.split('-');
+    const parts = l.split('-');
+    if (parts.length < 2) return l;
+    const y = parts[0];
+    const moN = parseInt(parts[1], 10);
+    if (isNaN(moN) || moN < 1 || moN > 12) return l;
     const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    return nomes[+m-1] + ' ' + y.slice(2);
+    return nomes[moN-1] + ' ' + y.slice(2);
   });
 
   if (flowChartInst) flowChartInst.destroy();
@@ -1127,9 +1316,292 @@ function formatDate(d) {
   return `${+day} ${meses[+m-1]} ${y}`;
 }
 
+/* ── Chat IA ────────────────────────────────────────────── */
+let chatHistorico = []; // histórico da conversa para contexto
+
+function construirContexto() {
+  // Resumo das transações para dar contexto ao modelo
+  if (!allTransactions.length) return "O utilizador ainda não importou nenhum extrato bancário.";
+  const income  = allTransactions.filter(t=>t.type==='credit').reduce((a,t)=>a+t.amount,0);
+  const expense = allTransactions.filter(t=>t.type==='debit').reduce((a,t)=>a+Math.abs(t.amount),0);
+  const cats = {};
+  allTransactions.filter(t=>t.type==='debit').forEach(t=>{
+    cats[t.category] = (cats[t.category]||0) + Math.abs(t.amount);
+  });
+  const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([c,v])=>`${c}: €${v.toFixed(2)}`).join(', ');
+  const n = allTransactions.length;
+  return `O utilizador tem ${n} transações importadas. Receitas totais: €${income.toFixed(2)}. Despesas totais: €${expense.toFixed(2)}. Saldo líquido: €${(income-expense).toFixed(2)}. Top categorias de despesa: ${topCats}.`;
+}
+
+function adicionarMensagem(texto, tipo) {
+  const box = document.getElementById('chat-messages');
+  const isUser = tipo === 'user';
+  const div = document.createElement('div');
+  div.className = `chat-msg ${tipo}`;
+  div.style.cssText = 'display:flex;gap:10px;align-items:flex-start;' + (isUser ? 'flex-direction:row-reverse;' : '');
+  const avatar = document.createElement('div');
+  avatar.style.cssText = `width:28px;height:28px;border-radius:50%;background:${isUser ? 'var(--accent)' : 'var(--purple)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
+  avatar.innerHTML = `<i class="ti ${isUser ? 'ti-user' : 'ti-robot'}" style="font-size:14px;color:${isUser ? '#0d0f10' : '#fff'};"></i>`;
+  const bubble = document.createElement('div');
+  bubble.style.cssText = `background:${isUser ? 'rgba(200,240,96,0.1)' : 'var(--bg2)'};border:1px solid ${isUser ? 'rgba(200,240,96,0.3)' : 'var(--border)'};border-radius:${isUser ? 'var(--radius) 0' : '0 var(--radius)'} var(--radius) var(--radius);padding:10px 14px;font-size:13px;color:var(--text);line-height:1.6;max-width:85%;white-space:pre-wrap;`;
+  bubble.textContent = texto;
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return bubble;
+}
+
+function adicionarTyping() {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.id = 'chat-typing';
+  div.style.cssText = 'display:flex;gap:10px;align-items:flex-start;';
+  div.innerHTML = `
+    <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <i class="ti ti-robot" style="font-size:14px;color:#fff;"></i>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:0 var(--radius) var(--radius) var(--radius);padding:10px 14px;">
+      <span style="display:inline-flex;gap:4px;align-items:center;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 1s infinite 0s;display:inline-block;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 1s infinite 0.2s;display:inline-block;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 1s infinite 0.4s;display:inline-block;"></span>
+      </span>
+    </div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function enviarChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  document.getElementById('btn-chat-send').disabled = true;
+  document.getElementById('chat-suggestions').style.display = 'none';
+
+  adicionarMensagem(msg, 'user');
+  chatHistorico.push({ role: 'user', content: msg });
+  adicionarTyping();
+
+  try {
+    const r = await fetch(API + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mensagem: msg,
+        historico: chatHistorico.slice(-8), // últimas 8 mensagens de contexto
+        contexto: construirContexto()
+      })
+    });
+    const data = await r.json();
+    document.getElementById('chat-typing')?.remove();
+
+    const resposta = data.resposta || 'Não consegui gerar uma resposta. Verifica se o Ollama está ativo.';
+    adicionarMensagem(resposta, 'assistant');
+    chatHistorico.push({ role: 'assistant', content: resposta });
+  } catch(e) {
+    document.getElementById('chat-typing')?.remove();
+    adicionarMensagem('Erro de ligação ao servidor. Verifica se o python app.py está a correr.', 'assistant');
+  }
+
+  document.getElementById('btn-chat-send').disabled = false;
+  document.getElementById('chat-input').focus();
+}
+
+function enviarSugestao(texto) {
+  document.getElementById('chat-input').value = texto;
+  enviarChat();
+}
+
+/* ── Sugestões de poupança ─────────────────────────────── */
+async function gerarSugestoes() {
+  if (!allTransactions.length) {
+    toast('Sem dados para analisar. Importa um extrato primeiro.', 'err');
+    return;
+  }
+  const card = document.getElementById('sugestoes-card');
+  const cont = document.getElementById('sugestoes-content');
+  const btns = document.querySelectorAll('#btn-sugestoes,#btn-sugestoes-main');
+  card.style.display = 'block';
+  cont.innerHTML = '<span class="spinner"></span> A analisar os teus gastos com IA...';
+  btns.forEach(b => b.disabled = true);
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const r = await fetch(API + '/sugestoes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: filteredTx })
+    });
+    const data = await r.json();
+    if (data.sugestoes) {
+      cont.innerHTML = data.sugestoes
+        .split('\n')
+        .map(l => l.startsWith('💡')
+          ? '<span style="color:var(--accent);font-weight:500;">' + l.split(':')[0] + ':</span>' + l.split(':').slice(1).join(':')
+          : l)
+        .join('<br>');
+      toast('Sugestões geradas!', 'ok');
+    } else {
+      cont.textContent = 'Não foi possível gerar sugestões. Verifica se o Ollama está activo.';
+      toast('Erro ao gerar sugestões', 'err');
+    }
+  } catch(e) {
+    cont.textContent = 'Erro de ligação. Verifica se o python app.py está a correr.';
+    toast('Erro de ligação', 'err');
+  }
+  btns.forEach(b => b.disabled = false);
+}
+
 /* ── Init ──────────────────────────────────────────────────────── */
 checkAI();
 loadDemoData();   // Remove esta linha quando ligares ao backend real
+
+/* ── Reclassificação manual ────────────────────────────────────── */
+const CATEGORIAS = [
+  'Alimentação','Transportes','Lazer','Saúde','Habitação',
+  'Subscrições','Receita','Educação','Viagens','Câmbio','Transferência','Outros'
+];
+
+let modalTxIndex = null;
+let modalCatSelecionada = null;
+
+function abrirModal(idx) {
+  modalTxIndex = idx;
+  const tx = filteredTx[idx];
+  modalCatSelecionada = tx.category;
+  document.getElementById('modal-desc-tx').textContent = tx.description;
+  // Verificar se a IA já aprendeu esta categoria
+  const chaveCheck = tx.description.substring(0, 40).toLowerCase().trim();
+  const jaAprendeu = aprendizagem[chaveCheck];
+  const subEl = document.getElementById('modal-sub-info');
+  if (subEl) {
+    subEl.textContent = jaAprendeu
+      ? `💡 A IA já aprendeu: "${jaAprendeu}" para esta transação`
+      : 'A IA ainda não aprendeu esta categoria.';
+    subEl.style.color = jaAprendeu ? 'var(--accent)' : 'var(--text3)';
+  }
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = CATEGORIAS.map(c => `
+    <button class="cat-option ${c === tx.category ? 'selected' : ''}"
+      onclick="selecionarCat(this, '${c}')">${c}</button>
+  `).join('');
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+
+
+function selecionarCat(btn, cat) {
+  document.querySelectorAll('.cat-option').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  modalCatSelecionada = cat;
+  // Limpar input customizado
+  const inp = document.getElementById('cat-custom-input');
+  if (inp) inp.value = '';
+}
+
+function selecionarCustom(val) {
+  if (!val.trim()) return;
+  // Desselecionar botões
+  document.querySelectorAll('.cat-option').forEach(b => b.classList.remove('selected'));
+  modalCatSelecionada = val.trim();
+}
+
+function fecharModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalTxIndex = null;
+  const inp = document.getElementById('cat-custom-input');
+  if (inp) inp.value = '';
+}
+
+function confirmarCategoria() {
+  if (modalTxIndex === null || !modalCatSelecionada) return;
+
+  const txFilt = filteredTx[modalTxIndex];
+  const catAnterior = txFilt.category;
+  txFilt.category = modalCatSelecionada;
+
+  // Atualizar na lista completa
+  const idx = allTransactions.findIndex(t =>
+    t.date === txFilt.date && t.description === txFilt.description && t.amount === txFilt.amount
+  );
+  if (idx !== -1) allTransactions[idx].category = modalCatSelecionada;
+
+  // IA aprende: guardar associação descrição → categoria (localStorage)
+  const chaveAprendizagem = txFilt.description.substring(0, 40).toLowerCase().trim();
+  aprendizagem[chaveAprendizagem] = modalCatSelecionada;
+  try { localStorage.setItem('fintrack_aprendizagem', JSON.stringify(aprendizagem)); } catch(e) {}
+
+  // Notificar o backend para atualizar a memória RAG em runtime
+  fetch(API + '/reclassificar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      description: txFilt.description,
+      category: modalCatSelecionada,
+      direction: txFilt.type
+    })
+  }).catch(() => {});  // silencioso — não bloquear a UI
+
+  // Aplicar aprendizagem a transações semelhantes ainda não classificadas
+  let aplicadas = 0;
+  allTransactions.forEach(t => {
+    const chave = t.description.substring(0, 40).toLowerCase().trim();
+    if (chave === chaveAprendizagem && t.category !== modalCatSelecionada) {
+      t.category = modalCatSelecionada;
+      aplicadas++;
+    }
+  });
+  filteredTx.forEach(t => {
+    const chave = t.description.substring(0, 40).toLowerCase().trim();
+    if (chave === chaveAprendizagem) t.category = modalCatSelecionada;
+  });
+
+  document.getElementById('modal-overlay').classList.remove('open');
+  renderTxTable();
+  renderCatBars();
+  renderMetrics();
+  const msg = aplicadas > 1
+    ? `Categoria atualizada! IA aprendeu e aplicou a ${aplicadas} transações iguais.`
+    : 'Categoria atualizada! IA aprendeu para futuras transações.';
+  toast(msg, 'ok');
+}
+
+// Aplicar aprendizagem guardada ao carregar novos dados
+function aplicarAprendizagem(txs) {
+  txs.forEach(t => {
+    const chave = t.description.substring(0, 40).toLowerCase().trim();
+    if (aprendizagem[chave]) {
+      t.category = aprendizagem[chave];
+    }
+  });
+  return txs;
+}
 </script>
+
+<!-- ── Modal de Reclassificação ── -->
+<div class="modal-overlay" id="modal-overlay" onclick="fecharModal(event)">
+  <div class="modal">
+    <div class="modal-title">Reclassificar transação</div>
+    <div class="modal-desc" id="modal-desc-tx"></div>
+    <div class="modal-sub" id="modal-sub-info" style="font-size:10px;margin-bottom:6px;"></div>
+    <div class="modal-sub">Escolhe uma categoria ou escreve uma nova:</div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <div style="margin-bottom:1rem;">
+      <input type="text" id="cat-custom-input" placeholder="Ou escreve uma categoria personalizada..."
+        style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);
+               color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;outline:none;"
+        oninput="selecionarCustom(this.value)" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-accent" onclick="confirmarCategoria()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
