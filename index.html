@@ -562,7 +562,7 @@
     }
 
     .insight i { font-size: 18px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
-    .insight-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+    .insight-body { font-size: 12px; color: var(--text2); line-height: 1.6; flex: 1; }
     .insight-body strong { color: var(--text); }
 
     /* ── Botão CLASSIFICAR ────────────────────────────────────── */
@@ -575,6 +575,32 @@
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+    /* ── Botão conversar (dentro do insight) ─────────────────── */
+    #btn-chat-float {
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 7px 14px 7px 11px;
+      font-family: var(--mono);
+      font-size: 11px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      align-self: center;
+      white-space: nowrap;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 12px rgba(127,119,221,0.35);
+    }
+    #btn-chat-float.visible { display: flex; }
+    #btn-chat-float:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(127,119,221,0.55);
+    }
+    #btn-chat-float i { font-size: 14px; }
 
     /* ── Responsive ────────────────────────────────────────────── */
     @media (max-width: 900px) {
@@ -590,6 +616,7 @@
 <body>
 
 <div id="toast"><i class="ti ti-check"></i><span id="toast-msg"></span></div>
+
 
 <div class="app">
 
@@ -653,6 +680,10 @@
       <div class="insight fade-up" id="insight-box" style="display:none;">
         <i class="ti ti-sparkles"></i>
         <div class="insight-body" id="insight-text"></div>
+        <button id="btn-chat-float" onclick="abrirChatComInsight()" title="Conversar com a IA sobre esta sugestão">
+          <i class="ti ti-message-chatbot"></i>
+          Conversar
+        </button>
       </div>
 
       <!-- Sugestões IA -->
@@ -885,16 +916,18 @@
 
 <script>
 /* ── Estado global ──────────────────────────────────────────────── */
-let allTransactions = [];   // { date, description, amount, type, category }
+let allTransactions = [];
 let filteredTx       = [];
-// Base de aprendizagem local: descrição → categoria
 let aprendizagem = {};
 try { aprendizagem = JSON.parse(localStorage.getItem('fintrack_aprendizagem') || '{}'); } catch(e) { aprendizagem = {}; }
 let flowChartInst    = null;
 let donutChartInst   = null;
 let currentCat       = 'all';
 
-const API = 'http://127.0.0.1:5000';   // Flask backend
+// Guarda o texto do insight atual para injetar no chat
+let _insightAtual    = null;
+
+const API = 'http://127.0.0.1:5000';
 
 /* ── Navegação ─────────────────────────────────────────────────── */
 function goTo(name, btn) {
@@ -905,6 +938,13 @@ function goTo(name, btn) {
   const titles = { dashboard:'Dashboard', transacoes:'Transações', upload:'Importar PDF', relatorio:'Relatório', chat:'Chat IA' };
   document.getElementById('page-title').textContent = titles[name];
   if (name === 'relatorio') renderDonut();
+  // Esconder botão flutuante se sair do dashboard
+  const floatBtn = document.getElementById('btn-chat-float');
+  if (name !== 'dashboard') {
+    floatBtn.classList.remove('visible');
+  } else if (_insightAtual) {
+    floatBtn.classList.add('visible');
+  }
 }
 
 /* ── Verificar Ollama ──────────────────────────────────────────── */
@@ -919,7 +959,6 @@ async function checkAI() {
       document.getElementById('ai-status-txt').textContent = 'IA offline';
     }
   } catch {
-    // Tenta verificar se o servidor Flask está activo mesmo sem Ollama
     try {
       const r2 = await fetch(API + '/', { signal: AbortSignal.timeout(2000) });
       document.getElementById('ai-dot').className = 'ai-dot';
@@ -960,7 +999,6 @@ async function processarPDF() {
   try {
     let body;
     let headers = {};
-
     const bancoSel = document.getElementById('banco-select')?.value || 'auto';
 
     if (fileInput.files.length) {
@@ -974,12 +1012,10 @@ async function processarPDF() {
     }
 
     const r = await fetch(API + '/processar', { method: 'POST', headers, body });
-
     if (!r.ok) { throw new Error(`Servidor respondeu ${r.status}`); }
 
     const data = await r.json();
-    const bancoLabel = data.banco ? data.banco.toUpperCase() : 'desconhecido';
-    log('ok', `Banco detetado: ${bancoLabel}`);
+    log('ok', `Banco detetado: ${(data.banco || 'desconhecido').toUpperCase()}`);
     log('ok', `Extraídas ${data.transactions.length} transações`);
     log('warn', 'A classificar com Llama 3...');
 
@@ -991,23 +1027,16 @@ async function processarPDF() {
 
     renderAll();
     toast('Extrato processado com sucesso!', 'ok');
-
   } catch (err) {
     log('err', 'Erro: ' + err.message);
-    // Tenta ver se é erro de extração com dica
-    try {
-      const errData = JSON.parse(err.message);
-      if (errData.dica) {
-        log('warn', '💡 ' + errData.dica);
-      }
-    } catch(e) {}
+    try { const ed = JSON.parse(err.message); if (ed.dica) log('warn', '💡 ' + ed.dica); } catch(e) {}
     log('warn', 'A usar dados de demonstração...');
     loadDemoData();
     toast('Erro ao processar — a usar dados demo', 'err');
   }
 }
 
-/* ── Demo data (quando o backend não está disponível) ──────────── */
+/* ── Demo data ─────────────────────────────────────────────────── */
 function loadDemoData() {
   allTransactions = [
     { date:'2026-05-26', description:'SALÁRIO MAIO', amount: 2800, type:'credit', category:'Receita' },
@@ -1090,7 +1119,6 @@ function renderTxTable() {
           </span>
         `}
       </td>
-      </td>
       <td style="text-align:right;">
         <span class="tx-amount ${t.type}">${t.type==='credit' ? '+' : ''}${fmt(t.amount)}</span>
       </td>
@@ -1103,14 +1131,11 @@ function renderFlowChart(type='bar') {
   const months = {};
   filteredTx.forEach(t => {
     if (!t.date || typeof t.date !== 'string') return;
-    // Normalise date: must be YYYY-MM-DD or YYYY-MM
     const clean = t.date.trim();
-    // Extract year and month with regex - handles any separator
     const dm = clean.match(/^(\d{4})[-\/\.](\d{1,2})/);
     if (!dm) return;
     const yr = dm[1];
     const mo = dm[2].padStart(2, '0');
-    // Validate
     const yrN = parseInt(yr, 10);
     const moN = parseInt(mo, 10);
     if (isNaN(yrN) || isNaN(moN) || moN < 1 || moN > 12 || yrN < 2000) return;
@@ -1126,15 +1151,13 @@ function renderFlowChart(type='bar') {
   const labelsFmt = labels.map(l => {
     const parts = l.split('-');
     if (parts.length < 2) return l;
-    const y = parts[0];
     const moN = parseInt(parts[1], 10);
     if (isNaN(moN) || moN < 1 || moN > 12) return l;
     const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    return nomes[moN-1] + ' ' + y.slice(2);
+    return nomes[moN-1] + ' ' + parts[0].slice(2);
   });
 
   if (flowChartInst) flowChartInst.destroy();
-
   flowChartInst = new Chart(document.getElementById('flow-chart'), {
     type,
     data: {
@@ -1167,12 +1190,10 @@ function renderCatBars() {
   filteredTx.filter(t=>t.type==='debit').forEach(t => {
     cats[t.category] = (cats[t.category] || 0) + Math.abs(t.amount);
   });
-
   const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]);
   const max = sorted[0]?.[1] || 1;
   const colors = { Alimentação:'#1D9E75', Transportes:'#378ADD', Lazer:'#7F77DD',
                    Saúde:'#E24B4A', Habitação:'#EF9F27', Subscrições:'#7F77DD', Outros:'#8a887f' };
-
   document.getElementById('cat-bars').innerHTML = sorted.map(([cat, val]) => `
     <div class="cat-item">
       <div class="cat-header">
@@ -1192,7 +1213,6 @@ function renderDonut() {
   filteredTx.filter(t=>t.type==='debit').forEach(t => {
     cats[t.category] = (cats[t.category] || 0) + Math.abs(t.amount);
   });
-
   const labels = Object.keys(cats);
   const data   = Object.values(cats).map(v=>+v.toFixed(2));
   const palette = ['#1D9E75','#378ADD','#7F77DD','#E24B4A','#EF9F27','#C8F060','#8a887f'];
@@ -1210,7 +1230,6 @@ function renderDonut() {
     }
   });
 
-  /* Tabela resumo */
   const total = data.reduce((a,v)=>a+v,0);
   document.getElementById('resumo-table').innerHTML = `
     <table class="tx-table" style="font-size:12px;">
@@ -1226,7 +1245,7 @@ function renderDonut() {
     </table>`;
 }
 
-/* ── Insight IA ────────────────────────────────────────────────── */
+/* ── Insight IA + botão flutuante ──────────────────────────────── */
 function renderInsight() {
   const cats = {};
   filteredTx.filter(t=>t.type==='debit').forEach(t => {
@@ -1234,13 +1253,53 @@ function renderInsight() {
   });
   const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]);
   if (!sorted.length) return;
-  const top = sorted[0];
-  const income = filteredTx.filter(t=>t.type==='credit').reduce((a,t)=>a+t.amount,0);
-  const pct = (top[1]/income*100).toFixed(0);
+
+  const top     = sorted[0];
+  const income  = filteredTx.filter(t=>t.type==='credit').reduce((a,t)=>a+t.amount,0);
+  const pct     = (top[1]/income*100).toFixed(0);
+  const conselho = +pct > 40
+    ? 'Considera reduzir este gasto para aumentar a poupança mensal.'
+    : 'Bom controlo financeiro este período!';
 
   document.getElementById('insight-text').innerHTML =
-    `<strong>Análise automática:</strong> A tua maior categoria de despesa é <strong>${top[0]}</strong> com ${fmt(top[1])}, representando <strong>${pct}%</strong> das receitas. ${+pct>40 ? 'Considera reduzir este gasto para aumentar a poupança mensal.' : 'Bom controlo financeiro este período!'}`;
+    `<strong>Análise automática:</strong> A tua maior categoria de despesa é <strong>${top[0]}</strong> com ${fmt(top[1])}, representando <strong>${pct}%</strong> das receitas. ${conselho}`;
   document.getElementById('insight-box').style.display = 'flex';
+
+  // Guardar texto rico para injetar no chat
+  _insightAtual = `Analisei os teus dados financeiros e reparei que a tua maior categoria de despesa é **${top[0]}**, com ${fmt(top[1])} gastos (${pct}% das tuas receitas). ${conselho}\n\nPosso ajudar-te a perceber melhor este padrão ou sugerir formas concretas de reduzir. O que preferes?`;
+
+  // Mostrar botão flutuante com pequeno delay para ficar elegante
+  setTimeout(() => {
+    document.getElementById('btn-chat-float').classList.add('visible');
+  }, 600);
+}
+
+/* ── Abrir Chat com o insight injetado ─────────────────────────── */
+function abrirChatComInsight() {
+  if (!_insightAtual) return;
+
+  // Navegar para o Chat IA
+  const chatNavBtn = document.querySelector('.nav-item[onclick*="chat"]');
+  if (chatNavBtn) goTo('chat', chatNavBtn);
+
+  // Esconder o botão flutuante ao entrar no chat
+  document.getElementById('btn-chat-float').classList.remove('visible');
+
+  setTimeout(() => {
+    // Adicionar a mensagem do assistente com o insight
+    adicionarMensagem(_insightAtual, 'assistant');
+    chatHistorico.push({ role: 'assistant', content: _insightAtual });
+
+    // Esconder sugestões pré-definidas (já há contexto)
+    document.getElementById('chat-suggestions').style.display = 'none';
+
+    // Focar no input
+    document.getElementById('chat-input').focus();
+
+    // Scroll para baixo no chat
+    const box = document.getElementById('chat-messages');
+    box.scrollTop = box.scrollHeight;
+  }, 120);
 }
 
 /* ── Filtros ───────────────────────────────────────────────────── */
@@ -1272,10 +1331,11 @@ function exportCSV() {
 
 /* ── Limpar dados ──────────────────────────────────────────────── */
 function limparDados() {
-  allTransactions = []; filteredTx = [];
+  allTransactions = []; filteredTx = []; _insightAtual = null;
   document.getElementById('tx-body').innerHTML = `<tr><td colspan="4"><div class="empty"><i class="ti ti-file-off"></i><p>Sem dados. Importa um extrato PDF.</p></div></td></tr>`;
   document.getElementById('cat-bars').innerHTML = '';
   document.getElementById('insight-box').style.display = 'none';
+  document.getElementById('btn-chat-float').classList.remove('visible');
   if (flowChartInst) { flowChartInst.destroy(); flowChartInst = null; }
   renderMetrics();
   log('warn', 'Dados limpos.');
@@ -1316,11 +1376,10 @@ function formatDate(d) {
   return `${+day} ${meses[+m-1]} ${y}`;
 }
 
-/* ── Chat IA ────────────────────────────────────────────── */
-let chatHistorico = []; // histórico da conversa para contexto
+/* ── Chat IA ────────────────────────────────────────────────────── */
+let chatHistorico = [];
 
 function construirContexto() {
-  // Resumo das transações para dar contexto ao modelo
   if (!allTransactions.length) return "O utilizador ainda não importou nenhum extrato bancário.";
   const income  = allTransactions.filter(t=>t.type==='credit').reduce((a,t)=>a+t.amount,0);
   const expense = allTransactions.filter(t=>t.type==='debit').reduce((a,t)=>a+Math.abs(t.amount),0);
@@ -1330,8 +1389,7 @@ function construirContexto() {
   });
   const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5)
     .map(([c,v])=>`${c}: €${v.toFixed(2)}`).join(', ');
-  const n = allTransactions.length;
-  return `O utilizador tem ${n} transações importadas. Receitas totais: €${income.toFixed(2)}. Despesas totais: €${expense.toFixed(2)}. Saldo líquido: €${(income-expense).toFixed(2)}. Top categorias de despesa: ${topCats}.`;
+  return `O utilizador tem ${allTransactions.length} transações importadas. Receitas totais: €${income.toFixed(2)}. Despesas totais: €${expense.toFixed(2)}. Saldo líquido: €${(income-expense).toFixed(2)}. Top categorias de despesa: ${topCats}.`;
 }
 
 function adicionarMensagem(texto, tipo) {
@@ -1392,13 +1450,12 @@ async function enviarChat() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mensagem: msg,
-        historico: chatHistorico.slice(-8), // últimas 8 mensagens de contexto
+        historico: chatHistorico.slice(-8),
         contexto: construirContexto()
       })
     });
     const data = await r.json();
     document.getElementById('chat-typing')?.remove();
-
     const resposta = data.resposta || 'Não consegui gerar uma resposta. Verifica se o Ollama está ativo.';
     adicionarMensagem(resposta, 'assistant');
     chatHistorico.push({ role: 'assistant', content: resposta });
@@ -1416,7 +1473,7 @@ function enviarSugestao(texto) {
   enviarChat();
 }
 
-/* ── Sugestões de poupança ─────────────────────────────── */
+/* ── Sugestões de poupança ──────────────────────────────────────── */
 async function gerarSugestoes() {
   if (!allTransactions.length) {
     toast('Sem dados para analisar. Importa um extrato primeiro.', 'err');
@@ -1455,11 +1512,11 @@ async function gerarSugestoes() {
   btns.forEach(b => b.disabled = false);
 }
 
-/* ── Init ──────────────────────────────────────────────────────── */
+/* ── Init ───────────────────────────────────────────────────────── */
 checkAI();
-loadDemoData();   // Remove esta linha quando ligares ao backend real
+loadDemoData(); // Remove esta linha quando ligares ao backend real
 
-/* ── Reclassificação manual ────────────────────────────────────── */
+/* ── Reclassificação manual ─────────────────────────────────────── */
 const CATEGORIAS = [
   'Alimentação','Transportes','Lazer','Saúde','Habitação',
   'Subscrições','Receita','Educação','Viagens','Câmbio','Transferência','Outros'
@@ -1473,7 +1530,6 @@ function abrirModal(idx) {
   const tx = filteredTx[idx];
   modalCatSelecionada = tx.category;
   document.getElementById('modal-desc-tx').textContent = tx.description;
-  // Verificar se a IA já aprendeu esta categoria
   const chaveCheck = tx.description.substring(0, 40).toLowerCase().trim();
   const jaAprendeu = aprendizagem[chaveCheck];
   const subEl = document.getElementById('modal-sub-info');
@@ -1491,20 +1547,16 @@ function abrirModal(idx) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
-
-
 function selecionarCat(btn, cat) {
   document.querySelectorAll('.cat-option').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   modalCatSelecionada = cat;
-  // Limpar input customizado
   const inp = document.getElementById('cat-custom-input');
   if (inp) inp.value = '';
 }
 
 function selecionarCustom(val) {
   if (!val.trim()) return;
-  // Desselecionar botões
   document.querySelectorAll('.cat-option').forEach(b => b.classList.remove('selected'));
   modalCatSelecionada = val.trim();
 }
@@ -1521,38 +1573,28 @@ function confirmarCategoria() {
   if (modalTxIndex === null || !modalCatSelecionada) return;
 
   const txFilt = filteredTx[modalTxIndex];
-  const catAnterior = txFilt.category;
   txFilt.category = modalCatSelecionada;
 
-  // Atualizar na lista completa
   const idx = allTransactions.findIndex(t =>
     t.date === txFilt.date && t.description === txFilt.description && t.amount === txFilt.amount
   );
   if (idx !== -1) allTransactions[idx].category = modalCatSelecionada;
 
-  // IA aprende: guardar associação descrição → categoria (localStorage)
   const chaveAprendizagem = txFilt.description.substring(0, 40).toLowerCase().trim();
   aprendizagem[chaveAprendizagem] = modalCatSelecionada;
   try { localStorage.setItem('fintrack_aprendizagem', JSON.stringify(aprendizagem)); } catch(e) {}
 
-  // Notificar o backend para atualizar a memória RAG em runtime
   fetch(API + '/reclassificar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      description: txFilt.description,
-      category: modalCatSelecionada,
-      direction: txFilt.type
-    })
-  }).catch(() => {});  // silencioso — não bloquear a UI
+    body: JSON.stringify({ description: txFilt.description, category: modalCatSelecionada, direction: txFilt.type })
+  }).catch(() => {});
 
-  // Aplicar aprendizagem a transações semelhantes ainda não classificadas
   let aplicadas = 0;
   allTransactions.forEach(t => {
     const chave = t.description.substring(0, 40).toLowerCase().trim();
     if (chave === chaveAprendizagem && t.category !== modalCatSelecionada) {
-      t.category = modalCatSelecionada;
-      aplicadas++;
+      t.category = modalCatSelecionada; aplicadas++;
     }
   });
   filteredTx.forEach(t => {
@@ -1564,19 +1606,15 @@ function confirmarCategoria() {
   renderTxTable();
   renderCatBars();
   renderMetrics();
-  const msg = aplicadas > 1
+  toast(aplicadas > 1
     ? `Categoria atualizada! IA aprendeu e aplicou a ${aplicadas} transações iguais.`
-    : 'Categoria atualizada! IA aprendeu para futuras transações.';
-  toast(msg, 'ok');
+    : 'Categoria atualizada! IA aprendeu para futuras transações.', 'ok');
 }
 
-// Aplicar aprendizagem guardada ao carregar novos dados
 function aplicarAprendizagem(txs) {
   txs.forEach(t => {
     const chave = t.description.substring(0, 40).toLowerCase().trim();
-    if (aprendizagem[chave]) {
-      t.category = aprendizagem[chave];
-    }
+    if (aprendizagem[chave]) t.category = aprendizagem[chave];
   });
   return txs;
 }
