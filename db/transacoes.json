@@ -1,0 +1,205 @@
+[
+    {
+        "data": "Mar 21, 2026",
+        "desc": "Apple Pay deposit by *5171",
+        "valor": 10.0,
+        "tipo": "Receita",
+        "cat": "Alimentação"
+    },
+    {
+        "data": "Mar 21, 2026",
+        "desc": "Transfer to SALOME RIBEIRO CAETANO",
+        "valor": 5.0,
+        "tipo": "Despesa",
+        "cat": "Contas"
+    },
+    {
+        "data": "Mar 23, 2026",
+        "desc": "Revolut Bank UAB Sucursal em Portugal",
+        "valor": 1.6,
+        "tipo": "Despesa",
+        "cat": "Transportes"
+    },
+    {
+        "data": "Mar 27, 2026",
+        "desc": "Revolut Bank UAB Sucursal em Portugal",
+        "valor": 5.0,
+        "tipo": "Despesa",
+        "cat": "Lazer"
+    },
+    {
+        "data": "Mar 30, 2026",
+        "desc": "Revolut Bank UAB Sucursal em Portugal",
+        "valor": 2.55,
+        "tipo": "Despesa",
+        "cat": "Saúde"
+    },
+    {
+        "data": "Mar 21, 2026",
+        "desc": "Apple Pay deposit by *5171",
+        "valor": 10.0,
+        "tipo": "Receita",
+        "cat": "Salário",
+        "banco": "Revolut Bank UAB"
+    },
+    {
+        "data": "Mar 21, 2026",
+        "desc": "Transfer to SALOME RIBEIRO CAETANO",
+        "valor": -5.0,
+        "tipo": "Despesa",
+        "cat": "Contas",
+        "banco": "Revolut Bank UAB"
+    },
+    {
+        "data": "Mar 23, 2026",
+        "desc": "Revolut Bank UAB Sucursal em Portugal",
+        "valor": -1.6,
+        "tipo": "Despesa",
+        "cat": "Transportes",
+        "banco": "Revolut Bank UAB"
+    },
+    {
+        "data": "Mar 27, 2026",
+        "desc": "Revolut Bank UAB Sucursal em Portugal",
+        "valor": -5.0,
+        "tipo": "Despesa",
+        "cat": "Outros",
+        "banco": "Revolut Bank UAB"
+    },
+    {
+        "data": "Mar 30, 2026",
+        "desc": "Revolut Bank UAB Sucursal em Portugal",
+        "valor": -2.55,
+        "tipo": "Despesa",
+        "cat": "Saúde",
+        "banco": "Revolut Bank UAB"
+    },
+    {
+        "data": "11.03",
+        "desc": "TRF. P/O MEMORIA LIQUIDA, UNIPESSOAL, LDA",
+        "valor": 1035.36,
+        "tipo": "Crédito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.04",
+        "desc": "HILDA BARROS PORTO PRT",
+        "valor": 10.8,
+        "tipo": "Crédito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.04",
+        "desc": "PAGSERV INSTITUTO GESTAO FINAN",
+        "valor": 967.15,
+        "tipo": "Crédito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.05",
+        "desc": "MDB7952 NAME-CHEAP.C",
+        "valor": 26.02,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.05",
+        "desc": "CUSTO DE SERVICO INTERNACIONAL",
+        "valor": 1.0,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.05",
+        "desc": "IMPOSTO DO SELO",
+        "valor": 0.04,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.05",
+        "desc": "TRF MB WAY P/ ELIANA FERREIRA",
+        "valor": -600.0,
+        "tipo": "Debito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.05",
+        "desc": "COM.MAN.CONTA PACOTE M EMPRESA",
+        "valor": 1.0,
+        "tipo": "Crédito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.05",
+        "desc": "IMPOSTO SELO ART 17.3.4",
+        "valor": 0.04,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.06",
+        "desc": "TRF P/ VICTOR SOBRAL CARVALHO FERREIRA",
+        "valor": -500.0,
+        "tipo": "Debito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.13",
+        "desc": "MDB7952 WARP PRO SUB",
+        "valor": -15.6,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.13",
+        "desc": "CUSTO DE SERVICO INTERNACIONAL",
+        "valor": 0.6,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.13",
+        "desc": "IMPOSTO DO SELO",
+        "valor": 0.02,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.14",
+        "desc": "STRIPE",
+        "valor": -4.76,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.14",
+        "desc": "TRF P/ VICTOR SOBRAL CARVALHO FERREIRA",
+        "valor": -999.4,
+        "tipo": "Debito",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    },
+    {
+        "data": "11.19",
+        "desc": "Ord.Pgt.do Estrg./TECHNOLOGY EXPENSES",
+        "valor": -5.0,
+        "tipo": "Despesa",
+        "cat": "Lazer",
+        "banco": "Millennium BCP"
+    }
+]
